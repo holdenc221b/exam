@@ -1,0 +1,49 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('trillium.csv')
+
+# Exercise 2: Add Location column
+location_map = {"TB": "Tilton Bridge", "PB": "Pocket Branch", "OM": "Old Mine", "CA": "Cave", "WF": "WhiteWater Falls", "BR": "Boat Ramp", "JG": "Jocassee Gorges"}
+df['Location'] = df['Site'].map(location_map)
+
+# Exercise 3: Function averages
+def averages(values: list[float]) -> list[float]:
+    """Compute triplet averages.
+    >>> averages([6.0, 1.0, 5.0, 2.0, 4.0, 3.0])
+    [2.0, 5.0]
+    """
+    values.sort()
+    return [np.mean(values[i:i+3]) for i in range(0, len(values), 3)]
+
+# Exercise 4: Apply function on Citrulline at Tilton Bridge
+tb_values = df[df['Location'] == "Tilton Bridge"]['Citrulline'].dropna().tolist()
+avg_citrulline = averages(tb_values)
+
+# Exercise 5: Add column with max chemical compound value
+df['Max_Compound'] = df.iloc[:, 4:].max(axis=1)
+
+# Exercise 6: Histograms of Citrulline per Location
+df.groupby('Location')['Citrulline'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Citrulline Distribution by Location')
+plt.show()
+
+# Exercise 7: Scatter plot of Citrulline vs S-Adenosyl-L-methioninamine
+df.plot.scatter(x='Citrulline', y='S-Adenosyl-L-methioninamine', c=df['Status'].astype('category').cat.codes, cmap='viridis')
+plt.title('Citrulline vs S-Adenosyl-L-methioninamine by Status')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['S-Adenosyl-L-methioninamine']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['Citrulline'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
