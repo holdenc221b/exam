@@ -1,0 +1,50 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('rhinos.csv', parse_dates=['Date', 'DateBorn'])
+
+# Exercise 2: Compute Age in years
+df['Age'] = ((df['Date'] - df['DateBorn']).dt.days / 365.25).astype('float64')
+
+# Exercise 3: Function dehorn_trend
+def dehorn_trend(data: list[tuple[pd.Timestamp, bool]]) -> list[tuple[pd.Timestamp, bool]]:
+    """Find trend changes in dehorned/horned state.
+    >>> dehorn_trend([(pd.to_datetime('1.1.1989'), True), (pd.to_datetime('1.1.1990'), False), (pd.to_datetime('1.1.1995'), False)])
+    [(Timestamp('1989-01-01 00:00:00'), True), (Timestamp('1995-01-01 00:00:00'), False)]
+    """
+    return [data[i] for i in range(len(data)) if i == 0 or data[i][1] != data[i-1][1]]
+
+# Exercise 4: Apply function on rhino MPGRBF-02-05
+mpgrbf_data = df[df['RhinosAtSighting'] == 'MPGRBF-02-05'][['Date', 'Horn']].values.tolist()
+mpgrbf_trend = dehorn_trend(mpgrbf_data)
+
+# Exercise 5: Compute dehorned ratio per rhino
+dehorned_ratio = df.groupby('RhinosAtSighting')['Horn'].mean()
+
+# Exercise 6: Histogram of rhinos observed in each reserve
+df['Reserve'].value_counts().plot(kind='bar')
+plt.title('Number of Rhino Sightings per Reserve')
+plt.xlabel('Reserve')
+plt.ylabel('Count')
+plt.show()
+
+# Exercise 7: Histograms of male and female rhinos per reserve
+df.groupby(['Sex', 'Reserve'])['RhinosAtSighting'].count().unstack().plot(kind='bar', stacked=False)
+plt.title('Male and Female Rhino Sightings per Reserve')
+plt.xlabel('Reserve')
+plt.ylabel('Count')
+plt.legend(title='Sex')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Uniform('alpha', lower=1, upper=50)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=alpha, sigma=sigma, observed=df['Age'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
