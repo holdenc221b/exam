@@ -1,0 +1,59 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('birds_romania.csv')
+df.rename(columns={'lat': 'latitude', 'lng': 'longitude', 'alt': 'altitude'}, inplace=True)
+print(df.dtypes)
+
+# Exercise 2: Histogram of altitudes
+df['altitude'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Altitudes')
+plt.xlabel('Altitude (m)')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Function to compute Earth distance
+def earth_dist(lat1: float, lon1: float, lat2: float, lon2: float, R: float = 6371.009) -> float:
+    """Compute Earth distance between two latitude-longitude points.
+    >>> np.isclose(earth_dist(45.1, 9.2, 45.3, 9.4), 27.2, atol=0.5)
+    True
+    """
+    phi1, phi2 = np.radians(lat1), np.radians(lat2)
+    delta_phi = np.radians(lat2 - lat1) / 2
+    delta_lambda = np.radians(lon2 - lon1) / 2
+    a = np.sin(delta_phi)**2 + (1 - np.sin(delta_phi)**2 - np.sin((phi1 + phi2) / 2)**2) * np.sin(delta_lambda)**2
+    return 2 * R * np.arcsin(np.sqrt(a))
+
+# Exercise 4: Add timestamp column
+df['timestamp'] = pd.to_datetime(df['date'] + ' ' + df['time'])
+
+# Exercise 5: Compute total travel distance for Marco Dragonetti
+df_marco = df[df['rec'] == 'Marco Dragonetti'].sort_values('timestamp')
+df_marco['next_lat'] = df_marco['latitude'].shift(-1)
+df_marco['next_lon'] = df_marco['longitude'].shift(-1)
+df_marco['dist'] = df_marco.apply(lambda row: earth_dist(row['latitude'], row['longitude'], row['next_lat'], row['next_lon']), axis=1)
+total_distance = df_marco['dist'].sum()
+print(f'Total distance traveled by Marco Dragonetti: {total_distance:.2f} km')
+
+# Exercise 6: Compute median of total distances by all recorders
+distances = df.groupby('rec').apply(lambda g: g.sort_values('timestamp').apply(lambda row: earth_dist(row['latitude'], row['longitude'], row['latitude'].shift(-1), row['longitude'].shift(-1)), axis=1).sum())
+median_distance = distances.median()
+print(f'Median total distance traveled: {median_distance:.2f} km')
+
+# Exercise 7: Count bird sightings
+seen_count = df['bird-seen'].sum()
+not_seen_count = len(df) - seen_count
+print(f'Birds seen: {seen_count}, Birds not seen: {not_seen_count}')
+
+# Exercise 8: Bayesian model for bird sighting probability
+with pm.Model() as model:
+    p = pm.Uniform('p', 0, 1)
+    obs = pm.Binomial('obs', n=len(df), p=p, observed=seen_count)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
