@@ -1,0 +1,183 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Define the grid size
+grid_size = 51
+
+# Generate the x and y coordinates for all dots in the grid
+x_coords = np.repeat(np.arange(grid_size), grid_size)  # Repeat 51 times for each row
+y_coords = np.tile(np.arange(grid_size), grid_size)    # Tile 51 times to form columns
+
+# Plot the grid of dots
+plt.figure(figsize=(6, 6))  # Set figure size
+plt.scatter(x_coords, y_coords, s=10, color='black')  # Scatter plot with small dots
+plt.xticks([])  # Remove x-axis labels
+plt.yticks([])  # Remove y-axis labels
+plt.grid(False) # Hide grid
+plt.show()  # Show plot
+import numpy as np
+
+# Grid size
+grid_size = 51
+center = grid_size // 2  # Center of the grid (25, 25)
+
+# Possible moves: (dx, dy) pairs
+moves = [
+    (-1, 0), (1, 0),  # Left, Right
+    (0, -1), (0, 1),  # Down, Up
+    (-1, -1), (1, -1),  # Bottom-left, Bottom-right
+    (-1, 1), (1, 1)  # Top-left, Top-right
+]
+
+# Function to generate a single random walk
+def random_walk(steps=50):
+    x, y = center, center  # Start at the center
+    path = [(x, y)]  # Store the path
+
+    for _ in range(steps):
+        dx, dy = moves[np.random.randint(0, len(moves))]  # Choose a random move
+        x = (x + dx) % grid_size  # Apply move with wrap-around
+        y = (y + dy) % grid_size
+        path.append((x, y))  # Save the new position
+
+    return path
+
+# Generate 5 random walks
+walks = [random_walk() for _ in range(5)]
+
+import matplotlib.pyplot as plt
+
+# Plot the random walks
+plt.figure(figsize=(7, 7))  # Set figure size
+
+for walk in walks:
+    x_coords, y_coords = zip(*walk)  # Extract x and y values
+    plt.plot(x_coords, y_coords, marker='o', markersize=3, linestyle='-', alpha=0.7)
+
+# Highlight the starting point
+plt.scatter([center], [center], color='red', s=100, label="Start")
+
+# Remove grid and ticks for a clean look
+plt.xticks([])
+plt.yticks([])
+plt.grid(False)
+
+plt.legend()
+plt.title("5 Random Walks on a 51x51 Grid")
+plt.show()
+from typing import List, Tuple
+
+def merge_walks(walk1: List[Tuple[int, int]], walk2: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    """
+   Merge two random walks by alternating steps.
+    
+    Args:
+        walk1 (List[Tuple[int, int]]): First random walk (list of (x, y) positions).
+        walk2 (List[Tuple[int, int]]): Second random walk (list of (x, y) positions).
+
+    Returns:
+        List[Tuple[int, int]]: Combined walk with alternating steps.
+
+    Example:
+    >>> merge_walks([(0,0), (1,1), (1,2), (1,3)], [(1,0), (0,1)])
+    [(0, 0), (1, 0), (2, 1), (2, 2), (2, 3)]
+    """
+    merged_walk = []  # List to store the new merged walk
+    i, j = 0, 0  # Pointers for each walk
+    
+    # Start at the beginning of walk1
+    if walk1:
+        current_x, current_y = walk1[0]  # Initialize starting position
+    else:
+        return walk2  # If walk1 is empty, return walk2 as is
+
+    # Loop through both walks and take steps alternately
+    while i < len(walk1) or j < len(walk2):
+        if i < len(walk1):  # Take a step from walk1
+            merged_walk.append((current_x, current_y))
+            current_x, current_y = walk1[i]  # Move to the next step
+            i += 1
+
+        if j < len(walk2):  # Take a step from walk2
+            merged_walk.append((current_x, current_y))
+            current_x, current_y = walk2[j]  # Move to the next step
+            j += 1
+
+    return merged_walk
+
+import pandas as pd
+
+# Load the dataset
+df = pd.read_csv("iris.csv")  # Read CSV into a DataFrame
+
+# Show the first 5 rows
+df.head()
+# Compute the new columns
+df["petal_width_sepal_width_ratio"] = df["petal_width"] / df["sepal_width"]
+df["petal_length_sepal_length_ratio"] = df["petal_length"] / df["sepal_length"]
+
+# Show the first 5 rows
+df.head()
+import matplotlib.pyplot as plt
+
+# Define figure and axes
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))  # 1 row, 2 columns
+
+# List of unique species
+species_list = df["species"].unique()
+
+# Colors for different species
+colors = ["blue", "green", "orange"]
+
+# Left plot: Petal width / Sepal width ratio
+for species, color in zip(species_list, colors):
+    subset = df[df["species"] == species]  # Filter by species
+    axes[0].hist(subset["petal_width_sepal_width_ratio"], bins=15, alpha=0.6, color=color, label=species)
+
+axes[0].set_title("Histogram of Petal Width / Sepal Width")
+axes[0].set_xlabel("Ratio")
+axes[0].set_ylabel("Frequency")
+axes[0].legend()
+
+# Right plot: Petal length / Sepal length ratio
+for species, color in zip(species_list, colors):
+    subset = df[df["species"] == species]  # Filter by species
+    axes[1].hist(subset["petal_length_sepal_length_ratio"], bins=15, alpha=0.6, color=color, label=species)
+
+axes[1].set_title("Histogram of Petal Length / Sepal Length")
+axes[1].set_xlabel("Ratio")
+axes[1].set_ylabel("Frequency")
+axes[1].legend()
+
+# Show the figure
+plt.tight_layout()
+plt.show()
+import pymc as pm
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Step 1: Extract Sepal Width values for Iris-setosa
+setosa_sepal_width = df[df["species"] == "setosa"]["sepal_width"].values
+
+# Step 2: Define Bayesian Model
+with pm.Model() as model:
+    # Priors: Exponential(λ=1) for Mean (mu) and Standard Deviation (sigma)
+    mu = pm.Exponential("mu", lam=1)
+    sigma = pm.Exponential("sigma", lam=1)
+
+    # Likelihood: Normal Distribution
+    likelihood = pm.Normal("likelihood", mu=mu, sigma=sigma, observed=setosa_sepal_width)
+
+    # Step 3: Sample from the Posterior
+    trace = pm.sample(2000, return_inferencedata=True)
+
+# Step 4: Plot the Results
+pm.plot_posterior(trace, var_names=["mu", "sigma"])
+plt.show()
+
+# Step 5: Print Observed Mean and Standard Deviation
+observed_mean = np.mean(setosa_sepal_width)
+observed_std = np.std(setosa_sepal_width, ddof=1)
+
+print(f"Observed Mean: {observed_mean:.3f}")
+print(f"Observed Standard Deviation: {observed_std:.3f}")
