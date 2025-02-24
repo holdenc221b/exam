@@ -1,0 +1,50 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('EPE.csv')
+
+# Exercise 2: Add Species column
+species_map = {1: "Anas platyrhynchos domesticus", 2: "Anser cygnoides domesticus", 5: "Alectoris chukar domesticus", 3: "Coturnix japonica domesticus", 4: "Gallus gallus domesticus", 7: "Phasianus colchicus domesticus"}
+df['Species'] = df['Image'].str.split('-').str[0].astype(int).map(species_map)
+
+# Exercise 3: Function ellipsoid_volume
+def ellipsoid_volume(a: float, b: float, c: float) -> float:
+    """Compute volume of an ellipsoid.
+    >>> ellipsoid_volume(3, 4, 5)
+    251.33
+    """
+    return (4/3) * np.pi * a * b * c
+
+# Exercise 4: Compute x from scan.area
+df['x'] = (df['scan.area'] * 4 / (np.pi * df['scan.width'])).fillna(0)
+
+# Exercise 5: Compute longest axis
+df['Longest_Axis'] = df[['scan.length', 'scan.width', 'x']].max(axis=1)
+
+# Exercise 6: Histograms of scan.area per species
+df.groupby('Species')['scan.area'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Scan Area Distribution by Species')
+plt.show()
+
+# Exercise 7: Scatter plot of volume vs sum of yolk and albumen
+df['Volume'] = ellipsoid_volume(df['scan.length'] / 2, df['scan.width'] / 2, df['x'] / 2)
+df.plot.scatter(x='Volume', y=df['Yolk'] + df['Albumen'], c=df['Species'].astype('category').cat.codes, cmap='viridis')
+plt.title('Volume vs Yolk + Albumen by Species')
+plt.show()
+
+# Exercise 8: Bayesian model
+subset_df = df.dropna(subset=['Yolk', 'Albumen'])
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=3)
+    beta = pm.Normal('beta', mu=0, sigma=3)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * subset_df['Volume']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=subset_df['Yolk'] + subset_df['Albumen'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
