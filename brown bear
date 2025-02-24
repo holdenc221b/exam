@@ -1,0 +1,51 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['Birth date', 'Date of the blood sampling'])
+
+# Exercise 2: Add sampling_place column
+df['sampling_place'] = df['Sample_ID'].str.split().str[-1]
+
+# Exercise 3: Function oddity
+def oddity(series: pd.Series) -> pd.Series:
+    """Multiply even-indexed values by 100 and odd-indexed values by 1000.
+    >>> oddity(pd.Series([10., 9.5, 8.]))
+    0    1000.0
+    1    9500.0
+    2     800.0
+    dtype: float64
+    """
+    return series * [100, 1000][series.index % 2]
+
+# Exercise 4: Apply function to male and female age_years
+df.sort_values(by='age_years', inplace=True)
+df.loc[df['Sex'] == 'M', 'oddity_age'] = oddity(df[df['Sex'] == 'M']['age_years'])
+df.loc[df['Sex'] == 'F', 'oddity_age'] = oddity(df[df['Sex'] == 'F']['age_years'])
+
+# Exercise 5: Unique sampling places and counts
+print(df['sampling_place'].value_counts())
+
+# Exercise 6: Histograms of age_years by sex and environment
+df.groupby(['Sex', 'Growth environment'])['age_years'].plot.hist(bins=20, alpha=0.5, legend=True)
+plt.show()
+
+# Exercise 7: Scatter plots of age_years vs methylation levels
+fig, axes = plt.subplots(3, 1, figsize=(6, 12))
+for ax, col in zip(axes, ['SLC12A5', 'VGF', 'SCGN']):
+    df.plot.scatter(x='age_years', y=col, ax=ax)
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['SCGN']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['age_years'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
