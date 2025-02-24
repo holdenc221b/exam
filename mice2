@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('mice.csv')
+print(df[['Genotype', 'Treatment', 'Behavior', 'class']].nunique())
+
+# Exercise 2: Histogram of Bcatenin_N
+df['Bcatenin_N'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Bcatenin_N')
+plt.xlabel('Bcatenin_N')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Histograms of Bcatenin_N by genotype and treatment
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+df.groupby('Genotype')['Bcatenin_N'].plot.hist(alpha=0.5, bins=20, ax=axes[0], legend=True, density=True)
+axes[0].set_title('Bcatenin_N by Genotype')
+df.groupby('Treatment')['Bcatenin_N'].plot.hist(alpha=0.5, bins=20, ax=axes[1], legend=True, density=True)
+axes[1].set_title('Bcatenin_N by Treatment')
+plt.show()
+
+# Exercise 4: Large figure with histograms for all proteins
+proteins = [col for col in df.columns if col.endswith('_N')]
+fig, axes = plt.subplots(len(proteins), 2, figsize=(5, 3 * len(proteins)))
+for i, protein in enumerate(proteins):
+    df.groupby('Genotype')[protein].plot.hist(alpha=0.5, bins=20, ax=axes[i, 0], legend=True, density=True)
+    df.groupby('Treatment')[protein].plot.hist(alpha=0.5, bins=20, ax=axes[i, 1], legend=True, density=True)
+plt.tight_layout()
+plt.show()
+
+# Exercise 5: Function mk_class
+def mk_class(genotype: str, behavior: str, treatment: str) -> str:
+    """Generate class label.
+    >>> mk_class('Control', 's/he runs fast!', 'Injected')
+    'c-sherunsfast-i'
+    """
+    return f"{genotype[0].lower()}-{''.join(filter(str.isalpha, behavior)).lower()}-{treatment[0].lower()}"
+
+# Exercise 6: Validate class column
+df['computed_class'] = df.apply(lambda row: mk_class(row['Genotype'], row['Behavior'], row['Treatment']), axis=1)
+assert (df['computed_class'] == df['class']).all()
+
+# Exercise 7: Scatter plot of standardized Bcatenin_N vs Tau_N
+df['Bcatenin_N_std'] = (df['Bcatenin_N'] - df['Bcatenin_N'].mean()) / df['Bcatenin_N'].std()
+df['Tau_N_std'] = (df['Tau_N'] - df['Tau_N'].mean()) / df['Tau_N'].std()
+df.groupby('class').plot.scatter(x='Bcatenin_N_std', y='Tau_N_std')
+plt.show()
+
+# Exercise 8: Comparison with Normal distribution
+mean, var = 2.15, 0.4
+df['Bcatenin_N'].plot.hist(bins=20, density=True, alpha=0.6, label='Observed')
+x = np.linspace(df['Bcatenin_N'].min(), df['Bcatenin_N'].max(), 100)
+plt.plot(x, (1 / np.sqrt(2 * np.pi * var)) * np.exp(-0.5 * ((x - mean) ** 2) / var), label='Normal(2.15, 0.4)')
+plt.legend()
+plt.title('Distribution of Bcatenin_N vs Normal(2.15, 0.4)')
+plt.show()
