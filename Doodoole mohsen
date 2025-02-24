@@ -1,1 +1,8 @@
 write a function that make every number in power of 2
+def power_of_two(numbers):
+    return [num ** 2 for num in numbers]
+
+# Example usage:
+numbers = [1, 2, 3, 4, 5]
+result = power_of_two(numbers)
+print(result)  # Output: [1, 4, 9, 16, 25]
