@@ -1,0 +1,66 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Read genome from FASTA file
+def read_fasta(filename: str) -> str:
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+    return ''.join(line.strip() for line in lines if not line.startswith('>'))
+
+genome = read_fasta('nc_051526_1.fasta')
+
+# Exercise 2: Compute unique triplets
+from itertools import product
+
+def generate_triplets(letters: set) -> set:
+    triplets = {''.join(t) for t in product(letters, repeat=3)}
+    return {t for t in triplets if t[::-1] not in triplets or t == t[::-1]}
+
+possible_triplets = generate_triplets(set(genome))
+
+# Exercise 3: Count triplets in genome
+def count_triplets(seq: str, triplet: str) -> int:
+    rev_triplet = triplet[::-1]
+    return sum(seq[i:i+3] in {triplet, rev_triplet} for i in range(len(seq) - 2))
+
+# Exercise 4: Create DataFrame with triplet occurrences
+triplet_counts = {t: count_triplets(genome, t) for t in possible_triplets}
+df = pd.DataFrame.from_dict(triplet_counts, orient='index', columns=['count'])
+df.index.name = 'triplet'
+
+# Exercise 5: Add column for even/odd occurrence
+df['even'] = df['count'] % 2 == 0
+
+# Exercise 6: Plot histograms for even and odd triplets
+plt.figure(figsize=(10, 5))
+plt.hist(df[df['even']]['count'], alpha=0.5, label='Even triplets', density=True)
+plt.hist(df[~df['even']]['count'], alpha=0.5, label='Odd triplets', density=True)
+plt.axhline(df[df['even']]['count'].mean(), color='blue', linestyle='dashed', label='Even Mean')
+plt.axhline(df[~df['even']]['count'].mean(), color='red', linestyle='dashed', label='Odd Mean')
+plt.legend()
+plt.title('Triplet Occurrence Histogram')
+plt.show()
+
+# Exercise 7: Compute standardized counts
+def standardize(series: pd.Series) -> pd.Series:
+    return (series - series.mean()) / series.std()
+
+df['standardized_count'] = standardize(df['count'])
+
+# Exercise 8: Bayesian model for triplet occurrences
+even_data = df[df['even']]['standardized_count']
+odd_data = df[~df['even']]['standardized_count']
+
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=2, shape=2)
+    sigma = pm.Exponential('sigma', 1)
+    obs_even = pm.Normal('obs_even', mu=mu[0], sigma=sigma, observed=even_data)
+    obs_odd = pm.Normal('obs_odd', mu=mu[1], sigma=sigma, observed=odd_data)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
+
