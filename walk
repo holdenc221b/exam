@@ -1,0 +1,67 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Plot 33x33 grid
+x, y = np.meshgrid(np.arange(33), np.arange(33))
+plt.scatter(x, y, s=10, c='black')
+plt.title('33x33 Grid')
+plt.show()
+
+# Exercise 2: Compute 5 random walks
+def random_walk(steps: int, size: int = 33) -> np.ndarray:
+    position = np.array([size // 2, size // 2])
+    moves = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+    walk = [position.copy()]
+    for _ in range(steps):
+        move = moves[np.random.choice(4)]
+        position = (position + move) % size
+        walk.append(position.copy())
+    return np.array(walk)
+
+walks = [random_walk(100) for _ in range(5)]
+
+# Exercise 3: Plot walks
+plt.figure(figsize=(8, 8))
+for walk in walks:
+    plt.plot(walk[:, 0], walk[:, 1])
+plt.title('Random Walks on 33x33 Grid')
+plt.show()
+
+# Exercise 4: Combine two random walks
+def combine_walks(walk1: np.ndarray, walk2: np.ndarray) -> np.ndarray:
+    return np.vstack([walk1, walk2 + walk1[-1] - walk2[0]])
+
+combined_walk = combine_walks(walks[0], walks[1])
+
+# Exercise 5: Load Iris dataset
+df = pd.read_csv('iris.csv')
+print(df.head())
+
+# Exercise 6: Add petal and sepal ratio
+df['sepal_ratio'] = df['sepal width (cm)'] / df['sepal length (cm)']
+df['petal_ratio'] = df['petal width (cm)'] / df['petal length (cm)']
+
+# Exercise 7: Plot histograms of sepal ratios by species
+species = df['species'].unique()
+plt.figure(figsize=(10, 6))
+for spec in species:
+    plt.hist(df[df['species'] == spec]['sepal_ratio'], alpha=0.5, label=spec, density=True)
+plt.legend()
+plt.title('Histogram of Sepal Ratios by Species')
+plt.show()
+
+# Exercise 8: Bayesian model for sepal ratio
+df_setosa_virginica = df[df['species'].isin(['Iris-setosa', 'Iris-virginica'])]
+
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0.5, sigma=0.1, shape=2)
+    sigma = pm.Exponential('sigma', 1)
+    obs = pm.Normal('obs', mu=mu[df_setosa_virginica['species'].map({'Iris-setosa': 0, 'Iris-virginica': 1})],
+                     sigma=sigma, observed=df_setosa_virginica['sepal_ratio'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
