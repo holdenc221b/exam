@@ -1,0 +1,62 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('butterfly_data.csv')
+df['organic'] = df['organic'].astype(bool)
+df['alternate_management'] = df['alternate_management'].astype(bool)
+
+# Exercise 2: Scatter plot of x and y by subarea
+groups = df.groupby('subarea')
+plt.figure(figsize=(10, 6))
+for name, group in groups:
+    plt.scatter(group['x'], group['y'], label=name, alpha=0.5)
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend()
+plt.title('Scatter plot of X vs Y by Subarea')
+plt.show()
+
+# Exercise 3: Function distance
+def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    """Compute Euclidean distance.
+    >>> distance((0, 0), (3, 4))
+    5.0
+    """
+    return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+# Exercise 4: Compute average distance per collection date
+def avg_collection_distance(df: pd.DataFrame) -> pd.Series:
+    return df.groupby(['year', 'month']).apply(lambda g: g[['x', 'y']].apply(lambda row: np.mean([distance(row, other) for other in g[['x', 'y']].values]), axis=1))
+df['avg_coll_dist'] = avg_collection_distance(df)
+
+# Exercise 5: Mean avg_coll_dist per collection date
+print(df.groupby(['year', 'month'])['avg_coll_dist'].mean())
+
+# Exercise 6: Histogram of avg_coll_dist
+df['avg_coll_dist'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Average Collection Distance')
+plt.xlabel('Distance')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 7: Histogram of avg_coll_dist for organic and non-organic butterflies
+df.groupby('organic')['avg_coll_dist'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Histograms of Average Collection Distance (Organic vs Non-Organic)')
+plt.xlabel('Distance')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df[df['subarea'] == 'E']['x'] / 525000)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
