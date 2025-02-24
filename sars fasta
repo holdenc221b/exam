@@ -1,0 +1,53 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+with open('sars.fasta', 'r') as f:
+    lines = f.readlines()
+    sars_sequence = ''.join(line.strip() for line in lines if not line.startswith('>'))
+
+# Exercise 2: Function n_subseq
+def n_subseq(seq: str, n: int) -> dict[str, int]:
+    """Count subsequences of length n.
+    >>> result = n_subseq('AABBA', 2)
+    >>> result['AA']
+    1
+    >>> result['AB']
+    1
+    >>> result['BB']
+    1
+    """
+    from collections import Counter
+    return dict(Counter([seq[i:i+n] for i in range(len(seq) - n + 1)]))
+
+# Exercise 3: Pie chart of letter occurrences
+letter_counts = n_subseq(sars_sequence, 1)
+plt.pie(letter_counts.values(), labels=letter_counts.keys(), autopct='%1.1f%%')
+plt.title('Occurrences of Letters in SARS-CoV-2 Sequence')
+plt.show()
+
+# Exercise 4: Store letter frequency in DataFrame
+letter_df = pd.DataFrame({'letter': letter_counts.keys(), 'occurrences': letter_counts.values()})
+letter_df['percentual'] = (letter_df['occurrences'] / letter_df['occurrences'].sum()) * 100
+
+# Exercise 5: Print letters occurring at least 5%
+print(letter_df[letter_df['percentual'] >= 5]['letter'].tolist())
+
+# Exercise 6: Generate random sequences
+rng = np.random.default_rng(seed=42)
+letters = list(letter_counts.keys())
+probs = np.array(list(letter_counts.values())) / sum(letter_counts.values())
+random_sequences = [''.join(rng.choice(letters, p=probs, size=1273)) for _ in range(10000)]
+
+# Exercise 7: Count sequences with <= 276 unique 2-letter subsequences
+num_matching = sum(1 for seq in random_sequences if len(n_subseq(seq, 2)) <= 276)
+print(f'Number of sequences with ≤ 276 unique 2-letter subsequences: {num_matching}')
+
+# Exercise 8: Comparison of different subsequence lengths
+for n in range(2, 9):
+    original_count = len(n_subseq(sars_sequence, n))
+    matching_percentage = np.mean([len(n_subseq(seq, n)) == original_count for seq in random_sequences]) * 100
+    print(f'Subsequences of length {n}: {matching_percentage:.2f}% match the original count')
