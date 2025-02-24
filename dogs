@@ -1,0 +1,63 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('dogs.csv', index_col=0)
+
+# Exercise 2: Check breed, weight, and age consistency
+grouped = df.groupby('pet_id')[['breeds', 'weight', 'age']].nunique()
+assert (grouped <= 1).all().all(), "Inconsistent data within the same pet_id"
+
+# Exercise 3: Scatter plot of first 15 ecg_pulses for pet_id 22
+dog_22 = df[df['pet_id'] == 22]
+plt.figure(figsize=(8, 5))
+for i, (_, row) in enumerate(dog_22.iterrows()):
+    pulses = list(map(float, row['ecg_pulses'].split(',')))[:15]
+    plt.scatter(pulses, [i] * len(pulses), label=f'Record {i}', alpha=0.6)
+plt.xlabel('ECG Pulses (s)')
+plt.ylabel('Recording Index')
+plt.legend()
+plt.title('ECG Pulses for pet_id 22')
+plt.show()
+
+# Exercise 4: Function deltas
+def deltas(values: list[float], duration: float) -> list[float]:
+    """Compute deltas between ECG pulse timestamps.
+    >>> deltas([0.98, 2.51, 2.82, 3.39], 4)
+    [0.98, 1.53, 0.31, 0.57, 0.61]
+    """
+    return [values[0]] + [values[i] - values[i - 1] for i in range(1, len(values))] + [duration - values[-1]]
+
+# Exercise 5: Compute mean ECG delta
+def compute_mean_delta(row):
+    pulses = list(map(float, row['ecg_pulses'].split(','))) if pd.notna(row['ecg_pulses']) else []
+    return np.mean(deltas(pulses, row['duration'])) if pulses else np.nan
+df['mean_ecg_delta'] = df.apply(compute_mean_delta, axis=1)
+
+# Exercise 6: Plot deltas for pet_id 32
+dog_32 = df[df['pet_id'] == 32]
+plt.figure(figsize=(8, 5))
+for _, row in dog_32.iterrows():
+    pulses = list(map(float, row['ecg_pulses'].split(','))) if pd.notna(row['ecg_pulses']) else []
+    plt.plot([0] + pulses + [row['duration']], deltas(pulses, row['duration']), marker='o', linestyle='-')
+plt.xlabel('Time (s)')
+plt.ylabel('Delta (s)')
+plt.title('ECG Deltas for pet_id 32')
+plt.show()
+
+# Exercise 7: Dataframe of max mean_ecg_delta per pet
+df_max = df.groupby('pet_id').agg({'breeds': 'first', 'weight': 'first', 'age': 'first', 'mean_ecg_delta': 'max'})
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df_max['weight']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df_max['mean_ecg_delta'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
