@@ -1,0 +1,67 @@
+mport numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('Howell1.csv', delimiter=';', decimal=',')
+df = df.apply(lambda col: col.str.replace(',', '.').astype(float) if col.dtype == 'object' else col)
+
+# Exercise 2: Histogram of age
+df['age'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Age')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Histograms of age by gender
+df[df['male'] == 1]['age'].plot.hist(alpha=0.5, bins=20, label='Male', density=True)
+df[df['male'] == 0]['age'].plot.hist(alpha=0.5, bins=20, label='Female', density=True)
+plt.title('Age Distribution by Gender')
+plt.legend()
+plt.show()
+
+df[(df['height'] > 1.2) & (df['male'] == 1)]['age'].plot.hist(alpha=0.5, bins=20, label='Male > 1.2m', density=True)
+df[(df['height'] > 1.2) & (df['male'] == 0)]['age'].plot.hist(alpha=0.5, bins=20, label='Female > 1.2m', density=True)
+plt.title('Age Distribution for Individuals Taller Than 1.2m')
+plt.legend()
+plt.show()
+
+# Exercise 4: Compute weight density
+df['w_dens'] = df['weight'] / df['height']
+
+# Exercise 5: Scatter plot of w_dens vs age
+df.plot.scatter(x='age', y='w_dens', c=df['male'].map({1: 'blue', 0: 'red'}))
+plt.title('Weight Density vs Age by Gender')
+plt.xlabel('Age')
+plt.ylabel('Weight Density')
+plt.show()
+
+# Exercise 6: Function w_dens_by_gender
+def w_dens_by_gender(age: float, is_male: bool) -> float:
+    """Compute expected weight density by gender.
+    >>> w_dens_by_gender(15, True)
+    0.15
+    >>> w_dens_by_gender(40, False)
+    0.23
+    """
+    if is_male:
+        return age / 100 if age <= 30 else 0.30
+    else:
+        return age / 110 if age <= 25 else 0.23
+
+# Exercise 7: Apply function to dataframe
+df['expected_w_dens'] = df.apply(lambda row: w_dens_by_gender(row['age'], row['male'] == 1), axis=1)
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df['expected_w_dens'] - df['w_dens'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
