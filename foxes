@@ -1,0 +1,63 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('foxes.csv')
+df['groupsize'] = df['groupsize'].astype('int8')
+df['group'] = df['group'].astype('category')
+print(df.dtypes)
+
+# Exercise 2: Histogram of groupsize
+df['groupsize'].plot.hist(bins=10, alpha=0.7)
+plt.title('Histogram of Groupsize')
+plt.xlabel('Groupsize')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Scatter plot of area vs groupsize
+df.plot.scatter(x='area', y='groupsize')
+plt.title('Scatter plot of Area vs Groupsize')
+plt.xlabel('Area')
+plt.ylabel('Groupsize')
+plt.show()
+
+# Exercise 4: Function to standardize values
+def standardize(values: np.ndarray) -> np.ndarray:
+    """Standardize a numpy array.
+    >>> standardize(np.array([1, -1, 0]))
+    array([ 1.22474487, -1.22474487,  0.        ])
+    """
+    return (values - np.mean(values)) / np.std(values)
+
+# Exercise 5: Compute Pearson's correlation coefficient
+def pearson_corr(x: np.ndarray, y: np.ndarray) -> float:
+    """Compute Pearson's correlation coefficient.
+    >>> np.isclose(pearson_corr(np.array([1, 2, 3]), np.array([1, 2, 3])), 1.0)
+    True
+    """
+    return np.corrcoef(x, y)[0, 1]
+
+# Exercise 6: Add standardized area and groupsize
+df['area_std'] = standardize(df['area'].values)
+df['groupsize_std'] = standardize(df['groupsize'].values)
+
+# Exercise 7: Scatter plot of standardized area vs standardized groupsize
+r = pearson_corr(df['area_std'].values, df['groupsize_std'].values)
+df.plot.scatter(x='area_std', y='groupsize_std')
+plt.plot(df['area_std'], r * df['area_std'], color='red', label=f'Line with slope {r:.2f}')
+plt.legend()
+plt.title('Scatter plot of Standardized Area vs Groupsize')
+plt.show()
+
+# Exercise 8: Bayesian model with PyMC3
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = alpha * df['area_std'].values
+    obs = pm.Normal('obs', mu=mu, sigma=1, observed=df['groupsize_std'].values)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
