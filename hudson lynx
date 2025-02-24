@@ -1,0 +1,66 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('hudson-bay-lynx-hare.csv', skiprows=1, names=['Year', 'Hare', 'Lynx'])
+print(df.dtypes)
+
+# Exercise 2: Plot populations
+df.plot(x='Year', y=['Hare', 'Lynx'], marker='o')
+plt.xticks(np.arange(1900, 1922, 2))
+plt.title('Hare and Lynx Populations')
+plt.xlabel('Year')
+plt.ylabel('Population')
+plt.legend(['Hare', 'Lynx'])
+plt.show()
+
+# Exercise 3: Euler approximation for Lotka-Volterra
+def e_approx_vl(epsilon: tuple[float, float], gamma: tuple[float, float], t: np.ndarray, init: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    """Return the Euler approximation for a Lotka-Volterra system of ODE."""
+    s, w = np.zeros_like(t), np.zeros_like(t)
+    s[0], w[0] = init
+    for i in range(1, len(t)):
+        dt = t[i] - t[i-1]
+        s[i] = s[i-1] + dt * (epsilon[0] - gamma[1] * w[i-1]) * s[i-1]
+        w[i] = w[i-1] + dt * (-epsilon[1] + gamma[0] * s[i-1]) * w[i-1]
+    return s, w
+
+t = np.linspace(0, 20, 2000)
+sol_hare, sol_lynx = e_approx_vl((0.55, 0.84), (0.026, 0.028), t, (4, 30))
+
+# Exercise 4: Plot model vs data
+plt.plot(df['Year'], df['Hare'], 'bo-', label='Hare Data')
+plt.plot(df['Year'], df['Lynx'], 'ro-', label='Lynx Data')
+plt.plot(1900 + t, sol_hare * 500, 'b--', label='Hare Model')
+plt.plot(1900 + t, sol_lynx * 500, 'r--', label='Lynx Model')
+plt.legend()
+plt.show()
+
+# Exercise 5: Compute Lotka-Volterra error
+def lv_error(detailed: np.ndarray, coarse: np.ndarray) -> float:
+    """Compute average error between two different resolution arrays."""
+    indices = np.linspace(0, len(detailed) - 1, len(coarse), dtype=int)
+    return np.mean(np.abs(detailed[indices] - coarse))
+
+error_hare = lv_error(sol_hare * 500, df['Hare'].values)
+error_lynx = lv_error(sol_lynx * 500, df['Lynx'].values)
+print(f'LV Error - Hare: {error_hare:.2f}, Lynx: {error_lynx:.2f}')
+
+# Exercise 6: Compute standardized ratio
+def standardize(x: np.ndarray) -> np.ndarray:
+    return (x - np.mean(x)) / np.std(x)
+
+df['ratio_std'] = standardize(df['Hare']) / standardize(df['Lynx'])
+
+# Exercise 7: Bayesian model for ratio
+df.dropna(subset=['ratio_std'], inplace=True)
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=1)
+    obs = pm.Normal('obs', mu=mu, sigma=1, observed=df['ratio_std'].values)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
