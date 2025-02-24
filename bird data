@@ -1,0 +1,57 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('bird_data.csv', dtype={'organic': bool, 'alternate_management': bool}, index_col='transect_ID')
+
+# Exercise 2: Scatter plot of X and Y colored by subarea
+groups = df.groupby('subarea')
+for name, group in groups:
+    plt.scatter(group['X'], group['Y'], label=name, alpha=0.5)
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend()
+plt.title('Scatter plot of X vs Y by subarea')
+plt.show()
+
+# Exercise 3: Function weighted_distance
+def weighted_distance(p1: tuple[float, float], p2: tuple[float, float], w: float) -> float:
+    """Compute the weighted Euclidean distance.
+    >>> weighted_distance((0, 0), (3, 4), 2)
+    10.0
+    """
+    return w * np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+# Exercise 4: Compute average distance in subareas
+def avg_subarea_distance(df: pd.DataFrame) -> pd.Series:
+    return df.groupby('subarea').apply(lambda g: g[['X', 'Y']].apply(lambda row: np.mean([weighted_distance(row, other, 1) for other in g[['X', 'Y']].values]), axis=1))
+df['avg_subarea_dist'] = avg_subarea_distance(df)
+
+# Exercise 5: Unique sampling places and counts
+print(df['subarea'].value_counts())
+
+# Exercise 6: Pie chart of functional_insectivores_species
+df['functional_insectivores_species'].value_counts().plot.pie(autopct='%.1f%%', labels=df['functional_insectivores_species'].unique())
+plt.title('Proportion of Functional Insectivores Species')
+plt.show()
+
+# Exercise 7: Histograms of grassland by seed eater species
+df.groupby('seed_eater_species')['grassland'].plot.hist(alpha=0.5, density=True, legend=True)
+plt.title('Histograms of Grassland by Seed Eater Species')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    a = pm.Normal('a', mu=0, sigma=1)
+    b = pm.Normal('b', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = a + b * (df['vineyards'] - df['vineyards'].mean()) / df['vineyards'].std()
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=(df['grassland'] - df['grassland'].mean()) / df['grassland'].std())
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
