@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Read the data into a Pandas DataFrame
+df = pd.read_csv("data.csv")
+
+# Exercise 2: Plot the distribution of length
+plt.figure(figsize=(8, 5))
+plt.hist(df["length"], bins=20, alpha=0.7, color="blue", edgecolor="black")
+plt.xlabel("Length (cm)")
+plt.ylabel("Frequency")
+plt.title("Distribution of Length")
+plt.show()
+
+# Exercise 3: Compute mean and standard deviation of length for each age
+length_stats = df.groupby("age")["length"].agg(["mean", "std"]).reset_index()
+
+# Exercise 4: Add a gender column based on DNA first letter
+def determine_gender(dna: str) -> str:
+    return "Male" if dna[0] in {"A", "C"} else "Female"
+
+df["gender"] = df["DNA"].apply(determine_gender)
+
+# Exercise 5: Plot the distribution of length for males
+plt.figure(figsize=(8, 5))
+plt.hist(df[df["gender"] == "Male"]["length"], bins=20, alpha=0.7, color="green", edgecolor="black")
+plt.xlabel("Length (cm)")
+plt.ylabel("Frequency")
+plt.title("Distribution of Length for Male Sarchiapus E.")
+plt.show()
+
+# Exercise 6: Define count_twins function
+def count_twins(dna: str, char: str) -> int:
+    """
+    Counts the occurrences of a given character appearing twice consecutively in a string.
+    
+    >>> count_twins("ZXXZXXXZCCCX", "X")
+    3
+    >>> count_twins("AABBAA", "A")
+    2
+    >>> count_twins("CCCC", "C")
+    3
+    """
+    return dna.count(char * 2)
+
+# Exercise 7: Add a column with the number of 'A' twins in DNA
+df["a_twins"] = df["DNA"].apply(lambda dna: count_twins(dna, "A"))
+
+# Exercise 8: Bayesian model using PyMC3
+with pm.Model() as model:
+    mu = pm.Normal("mu", mu=0, sigma=5)
+    sigma = pm.Uniform("sigma", lower=0, upper=10)
+    obs = pm.Normal("obs", mu=mu + df["a_twins"], sigma=sigma, observed=df["length"])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
