@@ -1,1 +1,7 @@
 make a function for odd numbers untill 100
+def odd_numbers_until_100():
+    return [num for num in range(1, 101) if num % 2 != 0]
+
+# Example usage:
+odds = odd_numbers_until_100()
+print(odds)
