@@ -1,0 +1,1507 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.16.0
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
+
+# # Programming in Python
+# ## Exam: September 10, 2024
+#
+# You can solve the exercises below by using standard Python 3.11 libraries, NumPy, Matplotlib, Pandas, PyMC.
+# You can browse the documentation: [Python](https://docs.python.org/3.11/), [NumPy](https://numpy.org/doc/1.26/index.html), [Matplotlib](https://matplotlib.org/3.8.2/users/index.html), [Pandas](https://pandas.pydata.org/pandas-docs/version/2.1/index.html), [PyMC](https://www.pymc.io/projects/docs/en/v5.10.3/api.html).
+# You can also look at the slides or your code on [GitHub](https://github.com).
+#
+# **It is forbidden to communicate with others or "ask questions" online (i.e., stackoverflow is ok if the answer is already there, but you cannot ask a new question or use ChatGPT or similar products)**
+#
+# To test examples in docstrings use
+#
+# ```python
+# import doctest
+# doctest.testmod()
+# ```
+#
+
+import numpy as np
+import pandas as pd             # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import pymc as pm               # type: ignore
+import arviz as az              # type: ignore
+
+# ### Exercise 1 (max 2 points)
+#
+# You have to analyze the genome of *Seicercus examinandus* as collected by the US National Center for Biotechnology Information (NCBI Reference Sequence: NC_051526.1). You have the data in FASTA format: a text file in which the first line (starting with >) is a comment (and should be ignored), then you get the genome data split over many lines. The file is [nc_051526_1.fasta](nc_051526_1.fasta).
+#
+# Read the genome in a variable of type `str`.
+
+pass
+
+# ### Exercise 2 (max 5 points)
+#
+# Consider the **set** of the letters appearing in the genome string. Compute all the triplets that *can* be composed by using these letters (for example: `'AAC'`), by considering each and its reverse only once: for example, only one between `'AAC'` and `'CAA'` should appear in the result. Name the result `potential_triplets`.
+
+pass
+
+# ### Exercise 3 (max 7 points)
+#
+# Define a function which takes a string of arbitrary length ($\ge 3$) and a triplet, and returns the number of occurrences of the triplet or its reverse in the string. For example the triplet `'AAT'` occurs three times (twice as `'AAT'` and once as `'TAA'`) in `'CAATAATCC'` and the triplet `'AAA'` occurs five times in `'AAAAAAA'`.
+#
+# To get the full marks, you should declare correctly the type hints (the signature of the function) and add a doctest string.
+
+pass
+
+# import doctest
+# doctest.testmod()
+
+
+# ### Exercise 4 (max 5 points)
+#
+# Define a pandas DataFrame indexed by all the potential triplets identified in Exercise 2, with a column reporting the occurrences of each triplet in the genome under analysis. For example, the triplet `'AGG'` should have 356 occurrences. Add a column `even`, with a value of `True` if the number of occurrences is even and `False` otherwise.
+
+pass
+
+# ### Exercise 5 (max 2 points)
+#
+# Add a column with the "standardized number of occurrences" `std_num` of each triplet. The *standardized number of occurrences* is defined as the difference between a value and the mean over all the values, divided by the standard deviation over all the values. 
+
+pass
+
+# ### Exercise 6 (max 3 points)
+#
+# Plot a histogram of the values `std_num` using a list `[-3, -2.5, -2, ..., 2, 2.5, 3]` to define 12 bins. Add to the figure also a red dashed vertical line marking the mean.
+#
+
+pass
+
+# ### Exercise 7 (max 5 points)
+#
+#
+# Plot two histograms (two different plots on one horizontal row, add also a legend to the figure), one for the triplets occuring an even number of times, one for the others. The two histograms should depict the values in increasing order.
+
+pass
+
+# ### Exercise 8 (max 4 points)
+#
+# Consider this statistical model: the *standardized number of occurrences* of even and not even triplets is normally distributed, with an unknown mean, and an unknown standard deviation. Your *a priori* estimation of the mean is given by a normal distribution with mean 0 and standard deviation 2; your prior estimation for the standard deviation is an exponential distribution with $\lambda = 1$. Use PyMC to sample the posterior distributions after having seen the actual values for even and not even triplets.  Plot the posterior distributions with `az.plot_posterior`.
+
+pass
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+from itertools import product
+
+# Exercise 1: Read genome
+with open('nc_051526_1.fasta') as f:
+    genome = ''.join(line.strip() for line in f if not line.startswith('>'))
+
+# Exercise 2: Compute potential triplets
+letters = set(genome)
+potential_triplets = {''.join(t) for t in product(letters, repeat=3) if ''.join(t) <= ''.join(t[::-1])}
+
+# Exercise 3: Count occurrences of triplets
+def count_triplet(seq: str, triplet: str) -> int:
+    """Returns the number of occurrences of a triplet or its reverse in a string.
+    >>> count_triplet('CAATAATCC', 'AAT')
+    3
+    >>> count_triplet('AAAAAAA', 'AAA')
+    5
+    """
+    return seq.count(triplet) + seq.count(triplet[::-1])
+
+# Exercise 4: Create DataFrame
+triplet_counts = {t: count_triplet(genome, t) for t in potential_triplets}
+df = pd.DataFrame({'triplet': triplet_counts.keys(), 'count': triplet_counts.values()}).set_index('triplet')
+df['even'] = df['count'] % 2 == 0
+
+# Exercise 5: Standardized number of occurrences
+df['std_num'] = (df['count'] - df['count'].mean()) / df['count'].std()
+
+# Exercise 6: Histogram of standardized values
+plt.hist(df['std_num'], bins=np.arange(-3, 3.5, 0.5), edgecolor='black')
+plt.axvline(df['std_num'].mean(), color='red', linestyle='dashed')
+plt.xlabel('Standardized Count')
+plt.ylabel('Frequency')
+plt.title('Histogram of Standardized Triplet Counts')
+plt.show()
+
+# Exercise 7: Two histograms for even and odd triplets
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, group, title in zip(axes, [True, False], ['Even', 'Odd']):
+    ax.hist(sorted(df[df['even'] == group]['std_num']), bins=20, edgecolor='black')
+    ax.set_title(f'{title} Triplet Occurrences')
+    ax.set_xlabel('Standardized Count')
+    ax.set_ylabel('Frequency')
+plt.legend(['Even', 'Odd'])
+plt.show()
+
+# Exercise 8: Bayesian Inference using PyMC
+with pm.Model() as model:
+    mu_even = pm.Normal('mu_even', mu=0, sigma=2)
+    sigma_even = pm.Exponential('sigma_even', lam=1)
+    mu_odd = pm.Normal('mu_odd', mu=0, sigma=2)
+    sigma_odd = pm.Exponential('sigma_odd', lam=1)
+    obs_even = pm.Normal('obs_even', mu=mu_even, sigma=sigma_even, observed=df[df['even']]['std_num'])
+    obs_odd = pm.Normal('obs_odd', mu=mu_odd, sigma=sigma_odd, observed=df[~df['even']]['std_num'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace, var_names=['mu_even', 'sigma_even', 'mu_odd', 'sigma_odd'])
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+from itertools import product
+
+# Exercise 1: Load data
+df = pd.read_csv('mice.csv', index_col='MouseID')
+
+# Exercise 2: Histograms of NR1_N and NR2A_N
+df[['NR1_N', 'NR2A_N']].plot.hist(bins=20, alpha=0.5, legend=True)
+plt.show()
+
+# Exercise 3: Histograms by genotype and treatment
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+df.groupby('Genotype')['NR2A_N'].plot.hist(bins=20, density=True, alpha=0.5, ax=axes[0], legend=True)
+df.groupby('Treatment')['NR2A_N'].plot.hist(bins=20, density=True, alpha=0.5, ax=axes[1], legend=True)
+axes[0].set_title('NR2A_N by Genotype')
+axes[1].set_title('NR2A_N by Treatment')
+plt.show()
+
+# Exercise 4: Histograms for proteins starting with 'p'
+p_cols = [col for col in df.columns if col.startswith('p')]
+fig, axes = plt.subplots(len(p_cols), 2, figsize=(5, 3*len(p_cols)))
+for ax, col in zip(axes, p_cols):
+    df.groupby('Genotype')[col].plot.hist(bins=20, density=True, alpha=0.5, ax=ax[0], legend=True)
+    df.groupby('Treatment')[col].plot.hist(bins=20, density=True, alpha=0.5, ax=ax[1], legend=True)
+plt.show()
+
+# Exercise 5: Function evodd_digits
+def evodd_digits(num: float, even: bool) -> str:
+    """Extract even or odd digits from the decimal representation of a number.
+    >>> evodd_digits(1.2345, True)
+    '24'
+    >>> evodd_digits(1.2345, False)
+    '135'
+    """
+    return ''.join(d for d in str(num) if d.isdigit() and (int(d) % 2 == 0) == even)
+
+# Exercise 6: Add NR_evodd column
+df['NR_evodd'] = df.apply(lambda row: evodd_digits(float(f"{row['NR1_N']}{row['NR2A_N']}"), True), axis=1)
+
+# Exercise 7: Scatter plot of standardized Bcatenin_N vs. Tau_N
+df_sub = df[df['Class'] == 't-CS-s']
+df_sub[['Bcatenin_N', 'Tau_N']] = (df_sub[['Bcatenin_N', 'Tau_N']] - df_sub[['Bcatenin_N', 'Tau_N']].mean()) / df_sub[['Bcatenin_N', 'Tau_N']].std()
+df_sub.plot.scatter(x='Bcatenin_N', y='Tau_N')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=0.2)
+    beta = pm.Normal('beta', mu=0, sigma=0.5)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df_sub['Bcatenin_N']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df_sub['Tau_N'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.summary(trace)
+
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['Birth date', 'Date of the blood sampling'])
+
+# Exercise 2: Add sampling_place column
+df['sampling_place'] = df['Sample_ID'].str.split().str[-1]
+
+# Exercise 3: Function oddity
+def oddity(series: pd.Series) -> pd.Series:
+    """Multiply even-indexed values by 100 and odd-indexed values by 1000.
+    >>> oddity(pd.Series([10., 9.5, 8.]))
+    0    1000.0
+    1    9500.0
+    2     800.0
+    dtype: float64
+    """
+    return series * [100, 1000][series.index % 2]
+
+# Exercise 4: Apply function to male and female age_years
+df.sort_values(by='age_years', inplace=True)
+df.loc[df['Sex'] == 'M', 'oddity_age'] = oddity(df[df['Sex'] == 'M']['age_years'])
+df.loc[df['Sex'] == 'F', 'oddity_age'] = oddity(df[df['Sex'] == 'F']['age_years'])
+
+# Exercise 5: Unique sampling places and counts
+print(df['sampling_place'].value_counts())
+
+# Exercise 6: Histograms of age_years by sex and environment
+df.groupby(['Sex', 'Growth environment'])['age_years'].plot.hist(bins=20, alpha=0.5, legend=True)
+plt.show()
+
+# Exercise 7: Scatter plots of age_years vs methylation levels
+fig, axes = plt.subplots(3, 1, figsize=(6, 12))
+for ax, col in zip(axes, ['SLC12A5', 'VGF', 'SCGN']):
+    df.plot.scatter(x='age_years', y=col, ax=ax)
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['SCGN']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['age_years'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('bird_data.csv', dtype={'organic': bool, 'alternate_management': bool}, index_col='transect_ID')
+
+# Exercise 2: Scatter plot of X and Y colored by subarea
+groups = df.groupby('subarea')
+for name, group in groups:
+    plt.scatter(group['X'], group['Y'], label=name, alpha=0.5)
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend()
+plt.title('Scatter plot of X vs Y by subarea')
+plt.show()
+
+# Exercise 3: Function weighted_distance
+def weighted_distance(p1: tuple[float, float], p2: tuple[float, float], w: float) -> float:
+    """Compute the weighted Euclidean distance.
+    >>> weighted_distance((0, 0), (3, 4), 2)
+    10.0
+    """
+    return w * np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+# Exercise 4: Compute average distance in subareas
+def avg_subarea_distance(df: pd.DataFrame) -> pd.Series:
+    return df.groupby('subarea').apply(lambda g: g[['X', 'Y']].apply(lambda row: np.mean([weighted_distance(row, other, 1) for other in g[['X', 'Y']].values]), axis=1))
+df['avg_subarea_dist'] = avg_subarea_distance(df)
+
+# Exercise 5: Unique sampling places and counts
+print(df['subarea'].value_counts())
+
+# Exercise 6: Pie chart of functional_insectivores_species
+df['functional_insectivores_species'].value_counts().plot.pie(autopct='%.1f%%', labels=df['functional_insectivores_species'].unique())
+plt.title('Proportion of Functional Insectivores Species')
+plt.show()
+
+# Exercise 7: Histograms of grassland by seed eater species
+df.groupby('seed_eater_species')['grassland'].plot.hist(alpha=0.5, density=True, legend=True)
+plt.title('Histograms of Grassland by Seed Eater Species')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    a = pm.Normal('a', mu=0, sigma=1)
+    b = pm.Normal('b', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = a + b * (df['vineyards'] - df['vineyards'].mean()) / df['vineyards'].std()
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=(df['grassland'] - df['grassland'].mean()) / df['grassland'].std())
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('dogs.csv', index_col=0)
+
+# Exercise 2: Check breed, weight, and age consistency
+grouped = df.groupby('pet_id')[['breeds', 'weight', 'age']].nunique()
+assert (grouped <= 1).all().all(), "Inconsistent data within the same pet_id"
+
+# Exercise 3: Scatter plot of first 15 ecg_pulses for pet_id 22
+dog_22 = df[df['pet_id'] == 22]
+plt.figure(figsize=(8, 5))
+for i, (_, row) in enumerate(dog_22.iterrows()):
+    pulses = list(map(float, row['ecg_pulses'].split(',')))[:15]
+    plt.scatter(pulses, [i] * len(pulses), label=f'Record {i}', alpha=0.6)
+plt.xlabel('ECG Pulses (s)')
+plt.ylabel('Recording Index')
+plt.legend()
+plt.title('ECG Pulses for pet_id 22')
+plt.show()
+
+# Exercise 4: Function deltas
+def deltas(values: list[float], duration: float) -> list[float]:
+    """Compute deltas between ECG pulse timestamps.
+    >>> deltas([0.98, 2.51, 2.82, 3.39], 4)
+    [0.98, 1.53, 0.31, 0.57, 0.61]
+    """
+    return [values[0]] + [values[i] - values[i - 1] for i in range(1, len(values))] + [duration - values[-1]]
+
+# Exercise 5: Compute mean ECG delta
+def compute_mean_delta(row):
+    pulses = list(map(float, row['ecg_pulses'].split(','))) if pd.notna(row['ecg_pulses']) else []
+    return np.mean(deltas(pulses, row['duration'])) if pulses else np.nan
+df['mean_ecg_delta'] = df.apply(compute_mean_delta, axis=1)
+
+# Exercise 6: Plot deltas for pet_id 32
+dog_32 = df[df['pet_id'] == 32]
+plt.figure(figsize=(8, 5))
+for _, row in dog_32.iterrows():
+    pulses = list(map(float, row['ecg_pulses'].split(','))) if pd.notna(row['ecg_pulses']) else []
+    plt.plot([0] + pulses + [row['duration']], deltas(pulses, row['duration']), marker='o', linestyle='-')
+plt.xlabel('Time (s)')
+plt.ylabel('Delta (s)')
+plt.title('ECG Deltas for pet_id 32')
+plt.show()
+
+# Exercise 7: Dataframe of max mean_ecg_delta per pet
+df_max = df.groupby('pet_id').agg({'breeds': 'first', 'weight': 'first', 'age': 'first', 'mean_ecg_delta': 'max'})
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df_max['weight']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df_max['mean_ecg_delta'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('trillium.csv')
+
+# Exercise 2: Add Location column
+location_map = {"TB": "Tilton Bridge", "PB": "Pocket Branch", "OM": "Old Mine", "CA": "Cave", "WF": "WhiteWater Falls", "BR": "Boat Ramp", "JG": "Jocassee Gorges"}
+df['Location'] = df['Site'].map(location_map)
+
+# Exercise 3: Function averages
+def averages(values: list[float]) -> list[float]:
+    """Compute triplet averages.
+    >>> averages([6.0, 1.0, 5.0, 2.0, 4.0, 3.0])
+    [2.0, 5.0]
+    """
+    values.sort()
+    return [np.mean(values[i:i+3]) for i in range(0, len(values), 3)]
+
+# Exercise 4: Apply function on Citrulline at Tilton Bridge
+tb_values = df[df['Location'] == "Tilton Bridge"]['Citrulline'].dropna().tolist()
+avg_citrulline = averages(tb_values)
+
+# Exercise 5: Add column with max chemical compound value
+df['Max_Compound'] = df.iloc[:, 4:].max(axis=1)
+
+# Exercise 6: Histograms of Citrulline per Location
+df.groupby('Location')['Citrulline'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Citrulline Distribution by Location')
+plt.show()
+
+# Exercise 7: Scatter plot of Citrulline vs S-Adenosyl-L-methioninamine
+df.plot.scatter(x='Citrulline', y='S-Adenosyl-L-methioninamine', c=df['Status'].astype('category').cat.codes, cmap='viridis')
+plt.title('Citrulline vs S-Adenosyl-L-methioninamine by Status')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['S-Adenosyl-L-methioninamine']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['Citrulline'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('EPE.csv')
+
+# Exercise 2: Add Species column
+species_map = {1: "Anas platyrhynchos domesticus", 2: "Anser cygnoides domesticus", 5: "Alectoris chukar domesticus", 3: "Coturnix japonica domesticus", 4: "Gallus gallus domesticus", 7: "Phasianus colchicus domesticus"}
+df['Species'] = df['Image'].str.split('-').str[0].astype(int).map(species_map)
+
+# Exercise 3: Function ellipsoid_volume
+def ellipsoid_volume(a: float, b: float, c: float) -> float:
+    """Compute volume of an ellipsoid.
+    >>> ellipsoid_volume(3, 4, 5)
+    251.33
+    """
+    return (4/3) * np.pi * a * b * c
+
+# Exercise 4: Compute x from scan.area
+df['x'] = (df['scan.area'] * 4 / (np.pi * df['scan.width'])).fillna(0)
+
+# Exercise 5: Compute longest axis
+df['Longest_Axis'] = df[['scan.length', 'scan.width', 'x']].max(axis=1)
+
+# Exercise 6: Histograms of scan.area per species
+df.groupby('Species')['scan.area'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Scan Area Distribution by Species')
+plt.show()
+
+# Exercise 7: Scatter plot of volume vs sum of yolk and albumen
+df['Volume'] = ellipsoid_volume(df['scan.length'] / 2, df['scan.width'] / 2, df['x'] / 2)
+df.plot.scatter(x='Volume', y=df['Yolk'] + df['Albumen'], c=df['Species'].astype('category').cat.codes, cmap='viridis')
+plt.title('Volume vs Yolk + Albumen by Species')
+plt.show()
+
+# Exercise 8: Bayesian model
+subset_df = df.dropna(subset=['Yolk', 'Albumen'])
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=3)
+    beta = pm.Normal('beta', mu=0, sigma=3)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * subset_df['Volume']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=subset_df['Yolk'] + subset_df['Albumen'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['Birth date', 'Date of the blood sampling'])
+
+# Exercise 2: Compute age in days
+df['age_days'] = (df['Date of the blood sampling'] - df['Birth date']).dt.days.astype('int64')
+
+# Exercise 3: Function correct_age
+def correct_age(sex: str, environment: str, age: int) -> float:
+    """Apply correction factor to age based on sex and environment.
+    >>> correct_age('M', 'wild', 100)
+    80.0
+    >>> correct_age('F', 'captive', 100)
+    150.0
+    """
+    factors = {('M', 'wild'): 0.8, ('M', 'captive'): 1, ('F', 'wild'): 1.2, ('F', 'captive'): 1.5}
+    return age * factors.get((sex, environment), 1)
+
+# Exercise 4: Apply correct_age on bears at least 60 days old
+df['corrected_age'] = df.apply(lambda row: correct_age(row['Sex'], row['Growth environment'], row['age_days']) if row['age_days'] >= 60 else row['age_days'], axis=1)
+
+# Exercise 5: Extract unique sample sites and counts
+df['Sample_Site'] = df['Sample_ID'].str.split().str[-1]
+print(df['Sample_Site'].value_counts())
+
+# Exercise 6: Histograms of age_days by sex and environment
+df.groupby(['Sex', 'Growth environment'])['age_days'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Age Distribution by Sex and Environment')
+plt.show()
+
+# Exercise 7: Scatter plots of age_days and corrected_age vs methylation levels
+fig, axes = plt.subplots(4, 2, figsize=(10, 15))
+methylation_cols = ['SLC12A5', 'POU4F2', 'VGF', 'SCGN']
+for i, col in enumerate(methylation_cols):
+    df.plot.scatter(x='age_days', y=col, ax=axes[i, 0], title=f'Age vs {col}')
+    df.plot.scatter(x='corrected_age', y=col, ax=axes[i, 1], title=f'Corrected Age vs {col}')
+plt.tight_layout()
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['SLC12A5']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['age_days'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('rhinos.csv', parse_dates=['Date', 'DateBorn'])
+
+# Exercise 2: Compute Age in years
+df['Age'] = ((df['Date'] - df['DateBorn']).dt.days / 365.25).astype('float64')
+
+# Exercise 3: Function dehorn_trend
+def dehorn_trend(data: list[tuple[pd.Timestamp, bool]]) -> list[tuple[pd.Timestamp, bool]]:
+    """Find trend changes in dehorned/horned state.
+    >>> dehorn_trend([(pd.to_datetime('1.1.1989'), True), (pd.to_datetime('1.1.1990'), False), (pd.to_datetime('1.1.1995'), False)])
+    [(Timestamp('1989-01-01 00:00:00'), True), (Timestamp('1995-01-01 00:00:00'), False)]
+    """
+    return [data[i] for i in range(len(data)) if i == 0 or data[i][1] != data[i-1][1]]
+
+# Exercise 4: Apply function on rhino MPGRBF-02-05
+mpgrbf_data = df[df['RhinosAtSighting'] == 'MPGRBF-02-05'][['Date', 'Horn']].values.tolist()
+mpgrbf_trend = dehorn_trend(mpgrbf_data)
+
+# Exercise 5: Compute dehorned ratio per rhino
+dehorned_ratio = df.groupby('RhinosAtSighting')['Horn'].mean()
+
+# Exercise 6: Histogram of rhinos observed in each reserve
+df['Reserve'].value_counts().plot(kind='bar')
+plt.title('Number of Rhino Sightings per Reserve')
+plt.xlabel('Reserve')
+plt.ylabel('Count')
+plt.show()
+
+# Exercise 7: Histograms of male and female rhinos per reserve
+df.groupby(['Sex', 'Reserve'])['RhinosAtSighting'].count().unstack().plot(kind='bar', stacked=False)
+plt.title('Male and Female Rhino Sightings per Reserve')
+plt.xlabel('Reserve')
+plt.ylabel('Count')
+plt.legend(title='Sex')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Uniform('alpha', lower=1, upper=50)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=alpha, sigma=sigma, observed=df['Age'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('prey_winter.csv', parse_dates=['date'])
+
+# Exercise 2: Map project_period to numerical values
+df['period'] = df['project_period'].map({'NWAI': 1, 'NWAII': 2, 'NWAIII': 3})
+
+# Exercise 3: Function date_check
+def date_check(period: str, date: pd.Timestamp) -> bool:
+    """Check if date falls within project period.
+    >>> date_check('NWAIII', pd.to_datetime('1.1.2015'))
+    True
+    >>> date_check('NWAIII', pd.to_datetime('1.1.1989'))
+    False
+    """
+    periods = {'NWAI': ('1983-01-01', '1985-12-31'), 'NWAII': ('1997-01-01', '2001-12-31'), 'NWAIII': ('2011-01-01', '2017-12-31')}
+    start, end = map(pd.to_datetime, periods[period])
+    return start <= date <= end
+
+# Exercise 4: Assert date consistency
+df.apply(lambda row: assert date_check(row['project_period'], row['date']), axis=1)
+
+# Exercise 5: Median elevation per species
+median_elevation = df.groupby('species')['elevation'].median()
+print(median_elevation)
+
+# Exercise 6: Scatter plot of elevation vs slope by habitat type
+df.plot.scatter(x='elevation', y='slope', c=df['habitat_type'], colormap='viridis')
+plt.title('Elevation vs Slope by Habitat Type')
+plt.show()
+
+# Exercise 7: Elevation deltas for habitat type 1 (forest)
+forest_df = df[df['habitat_type'] == 1].sort_values(by='elevation')
+deltas = np.diff(np.insert(forest_df['elevation'].values, 0, 0))
+plt.plot(forest_df['elevation'], deltas, marker='o', linestyle='-')
+plt.xlabel('Elevation')
+plt.ylabel('Elevation Delta')
+plt.title('Elevation Deltas for Forest Habitat')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=5)
+    beta_e = pm.Normal('beta_e', mu=0, sigma=5)
+    beta_h = pm.Normal('beta_h', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = alpha + beta_e * df['elevation'] + beta_h * df['habitat_type']
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df['slope'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('Plant_data.csv')
+df['wooden'] = df['Plant_part'].isin(['wood', 'bark'])
+
+# Exercise 2: Define and plot Gaussian functions
+def gaussian(x, mu, sigma):
+    return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+df_valid = df.dropna(subset=['d15N', 'd15N_sd'])
+x = np.linspace(df_valid['d15N'].min() - 3, df_valid['d15N'].max() + 3, 100)
+plt.figure(figsize=(10, 6))
+for _, row in df_valid.iterrows():
+    plt.plot(x, gaussian(x, row['d15N'], row['d15N_sd']), label=row['Species'])
+plt.xlabel('d15N')
+plt.ylabel('Density')
+plt.title('Gaussian Distributions of d15N')
+plt.legend()
+plt.show()
+
+# Exercise 3: Function secret_sauce
+def secret_sauce(plant_type: str, d13C: float, percentage: float) -> float:
+    """Modify d13C based on plant type.
+    >>> secret_sauce("C3", 30, 0.1)
+    3.0
+    >>> secret_sauce("C4", 30, 0.1)
+    27.0
+    """
+    return percentage * d13C if plant_type == "C3" else (1 - percentage) * d13C
+
+# Exercise 4: Apply secret_sauce function
+df['secret_sauce'] = df.apply(lambda row: secret_sauce(row['Plant_type'], row['d13C'], row['C_cont'] / 100), axis=1)
+
+# Exercise 5: Mean d15N per plant part
+print(df.groupby('Plant_part')['d15N'].mean())
+
+# Exercise 6: Scatter plot of d13C vs d15N
+df.plot.scatter(x='d13C', y='d15N', c=df['Plant_part'].astype('category').cat.codes, cmap='viridis')
+plt.title('d13C vs d15N by Plant Part')
+plt.show()
+
+# Exercise 7: Mean and standard deviation of d13C + d15N for acacia species
+acacia_df = df[df['Species'].str.contains('Acacia', na=False)]
+acacia_sum = acacia_df['d13C'] + acacia_df['d15N']
+print(f"Mean: {acacia_sum.mean()}, Std Dev: {acacia_sum.std()}")
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=5)
+    beta = pm.Normal('beta', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = alpha + beta * df['C_cont']
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df['N_cont'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('pigs.csv', index_col=0)
+df['pig_sighting'] = df['DETECTED'] == 1
+
+# Exercise 2: Plot histograms of border distances
+plt.figure(figsize=(10, 6))
+df[['borderMI', 'borderNY', 'borderQC']].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Histograms of Distances from Borders')
+plt.xlabel('Distance (meters)')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Function area
+def area(r1: float, r2: float, r3: float) -> float:
+    """Compute the area of the largest circle in square kilometers.
+    >>> area(1000.0, 2000.0, 3000.0)
+    9.0 * np.pi
+    """
+    max_radius = max(r1, r2, r3)
+    return (np.pi * (max_radius / 1000) ** 2)
+
+# Exercise 4: Compute area based on border distances
+df['area'] = df.apply(lambda row: area(row['borderMI'], row['borderNY'], row['borderQC']), axis=1)
+
+# Exercise 5: Mean dist_boar and dist_pig for detected wild boars and domestic pigs
+detected_pigs = df[df['pig_sighting']]
+means = detected_pigs.groupby('PigType')[['dist_boar', 'dist_pig']].mean()
+print(means)
+
+# Exercise 6: Scatter plot of dist_boar vs dist_pig
+df.plot.scatter(x='dist_boar', y='dist_pig', c=df['pig_sighting'].map({True: 'red', False: 'blue'}))
+plt.title('Scatter Plot of Distance to Boar vs Distance to Pig')
+plt.xlabel('Distance to Boar')
+plt.ylabel('Distance to Pig')
+plt.show()
+
+# Exercise 7: Sample 5 wild boars and print borderMI by dist_pig
+df[df['PigType'] == 'wild boar'].sample(5).sort_values(by='dist_pig')[['borderMI']]
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=170000, sigma=100000)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df[df['PigType'] == 'wild boar']['borderQC'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('butterfly_data.csv')
+df['organic'] = df['organic'].astype(bool)
+df['alternate_management'] = df['alternate_management'].astype(bool)
+
+# Exercise 2: Scatter plot of x and y by subarea
+groups = df.groupby('subarea')
+plt.figure(figsize=(10, 6))
+for name, group in groups:
+    plt.scatter(group['x'], group['y'], label=name, alpha=0.5)
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.legend()
+plt.title('Scatter plot of X vs Y by Subarea')
+plt.show()
+
+# Exercise 3: Function distance
+def distance(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    """Compute Euclidean distance.
+    >>> distance((0, 0), (3, 4))
+    5.0
+    """
+    return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+# Exercise 4: Compute average distance per collection date
+def avg_collection_distance(df: pd.DataFrame) -> pd.Series:
+    return df.groupby(['year', 'month']).apply(lambda g: g[['x', 'y']].apply(lambda row: np.mean([distance(row, other) for other in g[['x', 'y']].values]), axis=1))
+df['avg_coll_dist'] = avg_collection_distance(df)
+
+# Exercise 5: Mean avg_coll_dist per collection date
+print(df.groupby(['year', 'month'])['avg_coll_dist'].mean())
+
+# Exercise 6: Histogram of avg_coll_dist
+df['avg_coll_dist'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Average Collection Distance')
+plt.xlabel('Distance')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 7: Histogram of avg_coll_dist for organic and non-organic butterflies
+df.groupby('organic')['avg_coll_dist'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Histograms of Average Collection Distance (Organic vs Non-Organic)')
+plt.xlabel('Distance')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df[df['subarea'] == 'E']['x'] / 525000)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+with open('sars.fasta', 'r') as f:
+    lines = f.readlines()
+    sars_sequence = ''.join(line.strip() for line in lines if not line.startswith('>'))
+
+# Exercise 2: Function n_subseq
+def n_subseq(seq: str, n: int) -> dict[str, int]:
+    """Count subsequences of length n.
+    >>> result = n_subseq('AABBA', 2)
+    >>> result['AA']
+    1
+    >>> result['AB']
+    1
+    >>> result['BB']
+    1
+    """
+    from collections import Counter
+    return dict(Counter([seq[i:i+n] for i in range(len(seq) - n + 1)]))
+
+# Exercise 3: Pie chart of letter occurrences
+letter_counts = n_subseq(sars_sequence, 1)
+plt.pie(letter_counts.values(), labels=letter_counts.keys(), autopct='%1.1f%%')
+plt.title('Occurrences of Letters in SARS-CoV-2 Sequence')
+plt.show()
+
+# Exercise 4: Store letter frequency in DataFrame
+letter_df = pd.DataFrame({'letter': letter_counts.keys(), 'occurrences': letter_counts.values()})
+letter_df['percentual'] = (letter_df['occurrences'] / letter_df['occurrences'].sum()) * 100
+
+# Exercise 5: Print letters occurring at least 5%
+print(letter_df[letter_df['percentual'] >= 5]['letter'].tolist())
+
+# Exercise 6: Generate random sequences
+rng = np.random.default_rng(seed=42)
+letters = list(letter_counts.keys())
+probs = np.array(list(letter_counts.values())) / sum(letter_counts.values())
+random_sequences = [''.join(rng.choice(letters, p=probs, size=1273)) for _ in range(10000)]
+
+# Exercise 7: Count sequences with <= 276 unique 2-letter subsequences
+num_matching = sum(1 for seq in random_sequences if len(n_subseq(seq, 2)) <= 276)
+print(f'Number of sequences with ≤ 276 unique 2-letter subsequences: {num_matching}')
+
+# Exercise 8: Comparison of different subsequence lengths
+for n in range(2, 9):
+    original_count = len(n_subseq(sars_sequence, n))
+    matching_percentage = np.mean([len(n_subseq(seq, n)) == original_count for seq in random_sequences]) * 100
+    print(f'Subsequences of length {n}: {matching_percentage:.2f}% match the original count')
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('Howell1.csv', delimiter=';', decimal=',')
+df = df.apply(lambda col: col.str.replace(',', '.').astype(float) if col.dtype == 'object' else col)
+
+# Exercise 2: Histogram of age
+df['age'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Age')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Histograms of age by gender
+df[df['male'] == 1]['age'].plot.hist(alpha=0.5, bins=20, label='Male', density=True)
+df[df['male'] == 0]['age'].plot.hist(alpha=0.5, bins=20, label='Female', density=True)
+plt.title('Age Distribution by Gender')
+plt.legend()
+plt.show()
+
+df[(df['height'] > 1.2) & (df['male'] == 1)]['age'].plot.hist(alpha=0.5, bins=20, label='Male > 1.2m', density=True)
+df[(df['height'] > 1.2) & (df['male'] == 0)]['age'].plot.hist(alpha=0.5, bins=20, label='Female > 1.2m', density=True)
+plt.title('Age Distribution for Individuals Taller Than 1.2m')
+plt.legend()
+plt.show()
+
+# Exercise 4: Compute weight density
+df['w_dens'] = df['weight'] / df['height']
+
+# Exercise 5: Scatter plot of w_dens vs age
+df.plot.scatter(x='age', y='w_dens', c=df['male'].map({1: 'blue', 0: 'red'}))
+plt.title('Weight Density vs Age by Gender')
+plt.xlabel('Age')
+plt.ylabel('Weight Density')
+plt.show()
+
+# Exercise 6: Function w_dens_by_gender
+def w_dens_by_gender(age: float, is_male: bool) -> float:
+    """Compute expected weight density by gender.
+    >>> w_dens_by_gender(15, True)
+    0.15
+    >>> w_dens_by_gender(40, False)
+    0.23
+    """
+    if is_male:
+        return age / 100 if age <= 30 else 0.30
+    else:
+        return age / 110 if age <= 25 else 0.23
+
+# Exercise 7: Apply function to dataframe
+df['expected_w_dens'] = df.apply(lambda row: w_dens_by_gender(row['age'], row['male'] == 1), axis=1)
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df['expected_w_dens'] - df['w_dens'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('mice.csv')
+print(df[['Genotype', 'Treatment', 'Behavior', 'class']].nunique())
+
+# Exercise 2: Histogram of Bcatenin_N
+df['Bcatenin_N'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Bcatenin_N')
+plt.xlabel('Bcatenin_N')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Histograms of Bcatenin_N by genotype and treatment
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+df.groupby('Genotype')['Bcatenin_N'].plot.hist(alpha=0.5, bins=20, ax=axes[0], legend=True, density=True)
+axes[0].set_title('Bcatenin_N by Genotype')
+df.groupby('Treatment')['Bcatenin_N'].plot.hist(alpha=0.5, bins=20, ax=axes[1], legend=True, density=True)
+axes[1].set_title('Bcatenin_N by Treatment')
+plt.show()
+
+# Exercise 4: Large figure with histograms for all proteins
+proteins = [col for col in df.columns if col.endswith('_N')]
+fig, axes = plt.subplots(len(proteins), 2, figsize=(5, 3 * len(proteins)))
+for i, protein in enumerate(proteins):
+    df.groupby('Genotype')[protein].plot.hist(alpha=0.5, bins=20, ax=axes[i, 0], legend=True, density=True)
+    df.groupby('Treatment')[protein].plot.hist(alpha=0.5, bins=20, ax=axes[i, 1], legend=True, density=True)
+plt.tight_layout()
+plt.show()
+
+# Exercise 5: Function mk_class
+def mk_class(genotype: str, behavior: str, treatment: str) -> str:
+    """Generate class label.
+    >>> mk_class('Control', 's/he runs fast!', 'Injected')
+    'c-sherunsfast-i'
+    """
+    return f"{genotype[0].lower()}-{''.join(filter(str.isalpha, behavior)).lower()}-{treatment[0].lower()}"
+
+# Exercise 6: Validate class column
+df['computed_class'] = df.apply(lambda row: mk_class(row['Genotype'], row['Behavior'], row['Treatment']), axis=1)
+assert (df['computed_class'] == df['class']).all()
+
+# Exercise 7: Scatter plot of standardized Bcatenin_N vs Tau_N
+df['Bcatenin_N_std'] = (df['Bcatenin_N'] - df['Bcatenin_N'].mean()) / df['Bcatenin_N'].std()
+df['Tau_N_std'] = (df['Tau_N'] - df['Tau_N'].mean()) / df['Tau_N'].std()
+df.groupby('class').plot.scatter(x='Bcatenin_N_std', y='Tau_N_std')
+plt.show()
+
+# Exercise 8: Comparison with Normal distribution
+mean, var = 2.15, 0.4
+df['Bcatenin_N'].plot.hist(bins=20, density=True, alpha=0.6, label='Observed')
+x = np.linspace(df['Bcatenin_N'].min(), df['Bcatenin_N'].max(), 100)
+plt.plot(x, (1 / np.sqrt(2 * np.pi * var)) * np.exp(-0.5 * ((x - mean) ** 2) / var), label='Normal(2.15, 0.4)')
+plt.legend()
+plt.title('Distribution of Bcatenin_N vs Normal(2.15, 0.4)')
+plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('foxes.csv')
+df['groupsize'] = df['groupsize'].astype('int8')
+df['group'] = df['group'].astype('category')
+print(df.dtypes)
+
+# Exercise 2: Histogram of groupsize
+df['groupsize'].plot.hist(bins=10, alpha=0.7)
+plt.title('Histogram of Groupsize')
+plt.xlabel('Groupsize')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Scatter plot of area vs groupsize
+df.plot.scatter(x='area', y='groupsize')
+plt.title('Scatter plot of Area vs Groupsize')
+plt.xlabel('Area')
+plt.ylabel('Groupsize')
+plt.show()
+
+# Exercise 4: Function to standardize values
+def standardize(values: np.ndarray) -> np.ndarray:
+    """Standardize a numpy array.
+    >>> standardize(np.array([1, -1, 0]))
+    array([ 1.22474487, -1.22474487,  0.        ])
+    """
+    return (values - np.mean(values)) / np.std(values)
+
+# Exercise 5: Compute Pearson's correlation coefficient
+def pearson_corr(x: np.ndarray, y: np.ndarray) -> float:
+    """Compute Pearson's correlation coefficient.
+    >>> np.isclose(pearson_corr(np.array([1, 2, 3]), np.array([1, 2, 3])), 1.0)
+    True
+    """
+    return np.corrcoef(x, y)[0, 1]
+
+# Exercise 6: Add standardized area and groupsize
+df['area_std'] = standardize(df['area'].values)
+df['groupsize_std'] = standardize(df['groupsize'].values)
+
+# Exercise 7: Scatter plot of standardized area vs standardized groupsize
+r = pearson_corr(df['area_std'].values, df['groupsize_std'].values)
+df.plot.scatter(x='area_std', y='groupsize_std')
+plt.plot(df['area_std'], r * df['area_std'], color='red', label=f'Line with slope {r:.2f}')
+plt.legend()
+plt.title('Scatter plot of Standardized Area vs Groupsize')
+plt.show()
+
+# Exercise 8: Bayesian model with PyMC3
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = alpha * df['area_std'].values
+    obs = pm.Normal('obs', mu=mu, sigma=1, observed=df['groupsize_std'].values)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('birds_romania.csv')
+df.rename(columns={'lat': 'latitude', 'lng': 'longitude', 'alt': 'altitude'}, inplace=True)
+print(df.dtypes)
+
+# Exercise 2: Histogram of altitudes
+df['altitude'].plot.hist(bins=20, alpha=0.7)
+plt.title('Histogram of Altitudes')
+plt.xlabel('Altitude (m)')
+plt.ylabel('Frequency')
+plt.show()
+
+# Exercise 3: Function to compute Earth distance
+def earth_dist(lat1: float, lon1: float, lat2: float, lon2: float, R: float = 6371.009) -> float:
+    """Compute Earth distance between two latitude-longitude points.
+    >>> np.isclose(earth_dist(45.1, 9.2, 45.3, 9.4), 27.2, atol=0.5)
+    True
+    """
+    phi1, phi2 = np.radians(lat1), np.radians(lat2)
+    delta_phi = np.radians(lat2 - lat1) / 2
+    delta_lambda = np.radians(lon2 - lon1) / 2
+    a = np.sin(delta_phi)**2 + (1 - np.sin(delta_phi)**2 - np.sin((phi1 + phi2) / 2)**2) * np.sin(delta_lambda)**2
+    return 2 * R * np.arcsin(np.sqrt(a))
+
+# Exercise 4: Add timestamp column
+df['timestamp'] = pd.to_datetime(df['date'] + ' ' + df['time'])
+
+# Exercise 5: Compute total travel distance for Marco Dragonetti
+df_marco = df[df['rec'] == 'Marco Dragonetti'].sort_values('timestamp')
+df_marco['next_lat'] = df_marco['latitude'].shift(-1)
+df_marco['next_lon'] = df_marco['longitude'].shift(-1)
+df_marco['dist'] = df_marco.apply(lambda row: earth_dist(row['latitude'], row['longitude'], row['next_lat'], row['next_lon']), axis=1)
+total_distance = df_marco['dist'].sum()
+print(f'Total distance traveled by Marco Dragonetti: {total_distance:.2f} km')
+
+# Exercise 6: Compute median of total distances by all recorders
+distances = df.groupby('rec').apply(lambda g: g.sort_values('timestamp').apply(lambda row: earth_dist(row['latitude'], row['longitude'], row['latitude'].shift(-1), row['longitude'].shift(-1)), axis=1).sum())
+median_distance = distances.median()
+print(f'Median total distance traveled: {median_distance:.2f} km')
+
+# Exercise 7: Count bird sightings
+seen_count = df['bird-seen'].sum()
+not_seen_count = len(df) - seen_count
+print(f'Birds seen: {seen_count}, Birds not seen: {not_seen_count}')
+
+# Exercise 8: Bayesian model for bird sighting probability
+with pm.Model() as model:
+    p = pm.Uniform('p', 0, 1)
+    obs = pm.Binomial('obs', n=len(df), p=p, observed=seen_count)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('hudson-bay-lynx-hare.csv', skiprows=1, names=['Year', 'Hare', 'Lynx'])
+print(df.dtypes)
+
+# Exercise 2: Plot populations
+df.plot(x='Year', y=['Hare', 'Lynx'], marker='o')
+plt.xticks(np.arange(1900, 1922, 2))
+plt.title('Hare and Lynx Populations')
+plt.xlabel('Year')
+plt.ylabel('Population')
+plt.legend(['Hare', 'Lynx'])
+plt.show()
+
+# Exercise 3: Euler approximation for Lotka-Volterra
+def e_approx_vl(epsilon: tuple[float, float], gamma: tuple[float, float], t: np.ndarray, init: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    """Return the Euler approximation for a Lotka-Volterra system of ODE."""
+    s, w = np.zeros_like(t), np.zeros_like(t)
+    s[0], w[0] = init
+    for i in range(1, len(t)):
+        dt = t[i] - t[i-1]
+        s[i] = s[i-1] + dt * (epsilon[0] - gamma[1] * w[i-1]) * s[i-1]
+        w[i] = w[i-1] + dt * (-epsilon[1] + gamma[0] * s[i-1]) * w[i-1]
+    return s, w
+
+t = np.linspace(0, 20, 2000)
+sol_hare, sol_lynx = e_approx_vl((0.55, 0.84), (0.026, 0.028), t, (4, 30))
+
+# Exercise 4: Plot model vs data
+plt.plot(df['Year'], df['Hare'], 'bo-', label='Hare Data')
+plt.plot(df['Year'], df['Lynx'], 'ro-', label='Lynx Data')
+plt.plot(1900 + t, sol_hare * 500, 'b--', label='Hare Model')
+plt.plot(1900 + t, sol_lynx * 500, 'r--', label='Lynx Model')
+plt.legend()
+plt.show()
+
+# Exercise 5: Compute Lotka-Volterra error
+def lv_error(detailed: np.ndarray, coarse: np.ndarray) -> float:
+    """Compute average error between two different resolution arrays."""
+    indices = np.linspace(0, len(detailed) - 1, len(coarse), dtype=int)
+    return np.mean(np.abs(detailed[indices] - coarse))
+
+error_hare = lv_error(sol_hare * 500, df['Hare'].values)
+error_lynx = lv_error(sol_lynx * 500, df['Lynx'].values)
+print(f'LV Error - Hare: {error_hare:.2f}, Lynx: {error_lynx:.2f}')
+
+# Exercise 6: Compute standardized ratio
+def standardize(x: np.ndarray) -> np.ndarray:
+    return (x - np.mean(x)) / np.std(x)
+
+df['ratio_std'] = standardize(df['Hare']) / standardize(df['Lynx'])
+
+# Exercise 7: Bayesian model for ratio
+df.dropna(subset=['ratio_std'], inplace=True)
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=1)
+    obs = pm.Normal('obs', mu=mu, sigma=1, observed=df['ratio_std'].values)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Plot 33x33 grid
+x, y = np.meshgrid(np.arange(33), np.arange(33))
+plt.scatter(x, y, s=10, c='black')
+plt.title('33x33 Grid')
+plt.show()
+
+# Exercise 2: Compute 5 random walks
+def random_walk(steps: int, size: int = 33) -> np.ndarray:
+    position = np.array([size // 2, size // 2])
+    moves = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+    walk = [position.copy()]
+    for _ in range(steps):
+        move = moves[np.random.choice(4)]
+        position = (position + move) % size
+        walk.append(position.copy())
+    return np.array(walk)
+
+walks = [random_walk(100) for _ in range(5)]
+
+# Exercise 3: Plot walks
+plt.figure(figsize=(8, 8))
+for walk in walks:
+    plt.plot(walk[:, 0], walk[:, 1])
+plt.title('Random Walks on 33x33 Grid')
+plt.show()
+
+# Exercise 4: Combine two random walks
+def combine_walks(walk1: np.ndarray, walk2: np.ndarray) -> np.ndarray:
+    return np.vstack([walk1, walk2 + walk1[-1] - walk2[0]])
+
+combined_walk = combine_walks(walks[0], walks[1])
+
+# Exercise 5: Load Iris dataset
+df = pd.read_csv('iris.csv')
+print(df.head())
+
+# Exercise 6: Add petal and sepal ratio
+df['sepal_ratio'] = df['sepal width (cm)'] / df['sepal length (cm)']
+df['petal_ratio'] = df['petal width (cm)'] / df['petal length (cm)']
+
+# Exercise 7: Plot histograms of sepal ratios by species
+species = df['species'].unique()
+plt.figure(figsize=(10, 6))
+for spec in species:
+    plt.hist(df[df['species'] == spec]['sepal_ratio'], alpha=0.5, label=spec, density=True)
+plt.legend()
+plt.title('Histogram of Sepal Ratios by Species')
+plt.show()
+
+# Exercise 8: Bayesian model for sepal ratio
+df_setosa_virginica = df[df['species'].isin(['Iris-setosa', 'Iris-virginica'])]
+
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0.5, sigma=0.1, shape=2)
+    sigma = pm.Exponential('sigma', 1)
+    obs = pm.Normal('obs', mu=mu[df_setosa_virginica['species'].map({'Iris-setosa': 0, 'Iris-virginica': 1})],
+                     sigma=sigma, observed=df_setosa_virginica['sepal_ratio'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Read genome from FASTA file
+def read_fasta(filename: str) -> str:
+    with open(filename, 'r') as file:
+        lines = file.readlines()
+    return ''.join(line.strip() for line in lines if not line.startswith('>'))
+
+genome = read_fasta('nc_051526_1.fasta')
+
+# Exercise 2: Compute unique triplets
+from itertools import product
+
+def generate_triplets(letters: set) -> set:
+    triplets = {''.join(t) for t in product(letters, repeat=3)}
+    return {t for t in triplets if t[::-1] not in triplets or t == t[::-1]}
+
+possible_triplets = generate_triplets(set(genome))
+
+# Exercise 3: Count triplets in genome
+def count_triplets(seq: str, triplet: str) -> int:
+    rev_triplet = triplet[::-1]
+    return sum(seq[i:i+3] in {triplet, rev_triplet} for i in range(len(seq) - 2))
+
+# Exercise 4: Create DataFrame with triplet occurrences
+triplet_counts = {t: count_triplets(genome, t) for t in possible_triplets}
+df = pd.DataFrame.from_dict(triplet_counts, orient='index', columns=['count'])
+df.index.name = 'triplet'
+
+# Exercise 5: Add column for even/odd occurrence
+df['even'] = df['count'] % 2 == 0
+
+# Exercise 6: Plot histograms for even and odd triplets
+plt.figure(figsize=(10, 5))
+plt.hist(df[df['even']]['count'], alpha=0.5, label='Even triplets', density=True)
+plt.hist(df[~df['even']]['count'], alpha=0.5, label='Odd triplets', density=True)
+plt.axhline(df[df['even']]['count'].mean(), color='blue', linestyle='dashed', label='Even Mean')
+plt.axhline(df[~df['even']]['count'].mean(), color='red', linestyle='dashed', label='Odd Mean')
+plt.legend()
+plt.title('Triplet Occurrence Histogram')
+plt.show()
+
+# Exercise 7: Compute standardized counts
+def standardize(series: pd.Series) -> pd.Series:
+    return (series - series.mean()) / series.std()
+
+df['standardized_count'] = standardize(df['count'])
+
+# Exercise 8: Bayesian model for triplet occurrences
+even_data = df[df['even']]['standardized_count']
+odd_data = df[~df['even']]['standardized_count']
+
+with pm.Model() as model:
+    mu = pm.Normal('mu', mu=0, sigma=2, shape=2)
+    sigma = pm.Exponential('sigma', 1)
+    obs_even = pm.Normal('obs_even', mu=mu[0], sigma=sigma, observed=even_data)
+    obs_odd = pm.Normal('obs_odd', mu=mu[1], sigma=sigma, observed=odd_data)
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc3 as pm
+import arviz as az
+
+# Exercise 1: Read the data into a Pandas DataFrame
+df = pd.read_csv("data.csv")
+
+# Exercise 2: Plot the distribution of length
+plt.figure(figsize=(8, 5))
+plt.hist(df["length"], bins=20, alpha=0.7, color="blue", edgecolor="black")
+plt.xlabel("Length (cm)")
+plt.ylabel("Frequency")
+plt.title("Distribution of Length")
+plt.show()
+
+# Exercise 3: Compute mean and standard deviation of length for each age
+length_stats = df.groupby("age")["length"].agg(["mean", "std"]).reset_index()
+
+# Exercise 4: Add a gender column based on DNA first letter
+def determine_gender(dna: str) -> str:
+    return "Male" if dna[0] in {"A", "C"} else "Female"
+
+df["gender"] = df["DNA"].apply(determine_gender)
+
+# Exercise 5: Plot the distribution of length for males
+plt.figure(figsize=(8, 5))
+plt.hist(df[df["gender"] == "Male"]["length"], bins=20, alpha=0.7, color="green", edgecolor="black")
+plt.xlabel("Length (cm)")
+plt.ylabel("Frequency")
+plt.title("Distribution of Length for Male Sarchiapus E.")
+plt.show()
+
+# Exercise 6: Define count_twins function
+def count_twins(dna: str, char: str) -> int:
+    """
+    Counts the occurrences of a given character appearing twice consecutively in a string.
+    
+    >>> count_twins("ZXXZXXXZCCCX", "X")
+    3
+    >>> count_twins("AABBAA", "A")
+    2
+    >>> count_twins("CCCC", "C")
+    3
+    """
+    return dna.count(char * 2)
+
+# Exercise 7: Add a column with the number of 'A' twins in DNA
+df["a_twins"] = df["DNA"].apply(lambda dna: count_twins(dna, "A"))
+
+# Exercise 8: Bayesian model using PyMC3
+with pm.Model() as model:
+    mu = pm.Normal("mu", mu=0, sigma=5)
+    sigma = pm.Uniform("sigma", lower=0, upper=10)
+    obs = pm.Normal("obs", mu=mu + df["a_twins"], sigma=sigma, observed=df["length"])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+
+az.plot_posterior(trace)
+plt.show()
+
+
+
+
+
