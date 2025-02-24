@@ -1,0 +1,54 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('brown_bear_blood.csv', parse_dates=['Birth date', 'Date of the blood sampling'])
+
+# Exercise 2: Compute age in days
+df['age_days'] = (df['Date of the blood sampling'] - df['Birth date']).dt.days.astype('int64')
+
+# Exercise 3: Function correct_age
+def correct_age(sex: str, environment: str, age: int) -> float:
+    """Apply correction factor to age based on sex and environment.
+    >>> correct_age('M', 'wild', 100)
+    80.0
+    >>> correct_age('F', 'captive', 100)
+    150.0
+    """
+    factors = {('M', 'wild'): 0.8, ('M', 'captive'): 1, ('F', 'wild'): 1.2, ('F', 'captive'): 1.5}
+    return age * factors.get((sex, environment), 1)
+
+# Exercise 4: Apply correct_age on bears at least 60 days old
+df['corrected_age'] = df.apply(lambda row: correct_age(row['Sex'], row['Growth environment'], row['age_days']) if row['age_days'] >= 60 else row['age_days'], axis=1)
+
+# Exercise 5: Extract unique sample sites and counts
+df['Sample_Site'] = df['Sample_ID'].str.split().str[-1]
+print(df['Sample_Site'].value_counts())
+
+# Exercise 6: Histograms of age_days by sex and environment
+df.groupby(['Sex', 'Growth environment'])['age_days'].plot.hist(alpha=0.5, bins=20, legend=True)
+plt.title('Age Distribution by Sex and Environment')
+plt.show()
+
+# Exercise 7: Scatter plots of age_days and corrected_age vs methylation levels
+fig, axes = plt.subplots(4, 2, figsize=(10, 15))
+methylation_cols = ['SLC12A5', 'POU4F2', 'VGF', 'SCGN']
+for i, col in enumerate(methylation_cols):
+    df.plot.scatter(x='age_days', y=col, ax=axes[i, 0], title=f'Age vs {col}')
+    df.plot.scatter(x='corrected_age', y=col, ax=axes[i, 1], title=f'Corrected Age vs {col}')
+plt.tight_layout()
+plt.show()
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=1)
+    beta = pm.Normal('beta', mu=1, sigma=1)
+    gamma = pm.Exponential('gamma', lam=1)
+    mu = alpha + beta * df['SLC12A5']
+    obs = pm.Normal('obs', mu=mu, sigma=gamma, observed=df['age_days'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
