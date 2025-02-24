@@ -1,0 +1,61 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import pymc as pm
+import arviz as az
+
+# Exercise 1: Load data
+df = pd.read_csv('Plant_data.csv')
+df['wooden'] = df['Plant_part'].isin(['wood', 'bark'])
+
+# Exercise 2: Define and plot Gaussian functions
+def gaussian(x, mu, sigma):
+    return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+
+df_valid = df.dropna(subset=['d15N', 'd15N_sd'])
+x = np.linspace(df_valid['d15N'].min() - 3, df_valid['d15N'].max() + 3, 100)
+plt.figure(figsize=(10, 6))
+for _, row in df_valid.iterrows():
+    plt.plot(x, gaussian(x, row['d15N'], row['d15N_sd']), label=row['Species'])
+plt.xlabel('d15N')
+plt.ylabel('Density')
+plt.title('Gaussian Distributions of d15N')
+plt.legend()
+plt.show()
+
+# Exercise 3: Function secret_sauce
+def secret_sauce(plant_type: str, d13C: float, percentage: float) -> float:
+    """Modify d13C based on plant type.
+    >>> secret_sauce("C3", 30, 0.1)
+    3.0
+    >>> secret_sauce("C4", 30, 0.1)
+    27.0
+    """
+    return percentage * d13C if plant_type == "C3" else (1 - percentage) * d13C
+
+# Exercise 4: Apply secret_sauce function
+df['secret_sauce'] = df.apply(lambda row: secret_sauce(row['Plant_type'], row['d13C'], row['C_cont'] / 100), axis=1)
+
+# Exercise 5: Mean d15N per plant part
+print(df.groupby('Plant_part')['d15N'].mean())
+
+# Exercise 6: Scatter plot of d13C vs d15N
+df.plot.scatter(x='d13C', y='d15N', c=df['Plant_part'].astype('category').cat.codes, cmap='viridis')
+plt.title('d13C vs d15N by Plant Part')
+plt.show()
+
+# Exercise 7: Mean and standard deviation of d13C + d15N for acacia species
+acacia_df = df[df['Species'].str.contains('Acacia', na=False)]
+acacia_sum = acacia_df['d13C'] + acacia_df['d15N']
+print(f"Mean: {acacia_sum.mean()}, Std Dev: {acacia_sum.std()}")
+
+# Exercise 8: Bayesian model
+with pm.Model() as model:
+    alpha = pm.Normal('alpha', mu=0, sigma=5)
+    beta = pm.Normal('beta', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    mu = alpha + beta * df['C_cont']
+    obs = pm.Normal('obs', mu=mu, sigma=sigma, observed=df['N_cont'])
+    trace = pm.sample(1000, tune=1000, return_inferencedata=True, random_seed=42)
+az.plot_posterior(trace)
+plt.show()
