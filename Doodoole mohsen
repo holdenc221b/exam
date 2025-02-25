@@ -248,3 +248,210 @@ with pm.Model() as height_model:
 pm.plot_posterior(trace)
 plt.show()
 This completes the solution to all the exercises. Each step is explained and the code is provided to solve the problem as described.
+..............................................................
+
+
+javab grok
+
+I'll help solve each exercise step-by-step. Here are the solutions:
+
+Exercise 1
+python
+Wrap
+Copy
+# Read the Howell1.csv file into a DataFrame
+df = pd.read_csv('Howell1.csv')
+Exercise 2
+python
+Wrap
+Copy
+def assign_parent(row, df):
+    child_age = row['age']
+    # Potential parents: age between child_age + 15 and child_age + 50
+    min_parent_age = child_age + 15
+    max_parent_age = child_age + 50
+    
+    # Filter potential parents
+    potential_parents = df[
+        (df['age'] >= min_parent_age) & 
+        (df['age'] <= max_parent_age)
+    ].index
+    
+    # If no potential parents found, return -1
+    if len(potential_parents) == 0:
+        return -1
+    
+    # Randomly select one parent with equal probability
+    return np.random.choice(potential_parents)
+
+# Add parent column
+df['parent'] = df.apply(lambda row: assign_parent(row, df), axis=1)
+Exercise 3
+python
+Wrap
+Copy
+# Filter out -1 parents and compute age differences
+valid_parents = df[df['parent'] != -1]
+age_diff = valid_parents['age'] - df.loc[valid_parents['parent'], 'age']
+
+# Compute average without loops
+avg_age_diff = age_diff.mean()
+print(f"Average age difference between individuals and their parents: {avg_age_diff:.2f}")
+Exercise 4
+python
+Wrap
+Copy
+from pandas import Series
+from typing import Union
+
+def swap_consecutive(s: Series) -> Series:
+    """
+    Swaps consecutive pairs of values in a Series.
+    
+    Args:
+        s: Input pandas Series
+        
+    Returns:
+        A new Series with consecutive values swapped
+        
+    Examples:
+        >>> swap_consecutive(pd.Series([1, 2, 3, 4, 5]))
+        0    2
+        1    1
+        2    4
+        3    3
+        4    5
+        dtype: int64
+    """
+    s_new = s.copy()
+    # Get indices for swapping (even positions with odd positions)
+    even_idx = s.index[::2]
+    odd_idx = s.index[1::2]
+    
+    # Swap values where possible
+    if len(odd_idx) > 0:
+        # Ensure we don't exceed bounds
+        min_len = min(len(even_idx), len(odd_idx))
+        s_new[even_idx[:min_len]], s_new[odd_idx[:min_len]] = (
+            s[odd_idx[:min_len]], 
+            s[even_idx[:min_len]]
+        )
+    
+    return s_new
+
+# Test the doctest
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+Exercise 5
+python
+Wrap
+Copy
+# Filter out -1 parents
+valid_parents = df[df['parent'] != -1]
+
+# Create scatter plot
+plt.figure(figsize=(8, 6))
+plt.scatter(valid_parents['age'], 
+           df.loc[valid_parents['parent'], 'age'].values)
+plt.xlabel('Individual Age')
+plt.ylabel('Parent Age')
+plt.title('Age of Individuals vs. Their Parents')
+plt.grid(True)
+plt.show()
+Exercise 6
+python
+Wrap
+Copy
+# Filter individuals with same-sex parents
+valid_parents = df[df['parent'] != -1]
+same_sex = valid_parents[
+    valid_parents['male'] == df.loc[valid_parents['parent'], 'male'].values
+]
+
+# Split by sex
+males = same_sex[same_sex['male'] == 1]
+females = same_sex[same_sex['male'] == 0]
+
+# Create scatter plots
+plt.figure(figsize=(8, 6))
+plt.scatter(males['height'], 
+           df.loc[males['parent'], 'height'].values,
+           c='blue', label='Male', alpha=0.6)
+plt.scatter(females['height'], 
+           df.loc[females['parent'], 'height'].values,
+           c='red', label='Female', alpha=0.6)
+
+plt.xlabel('Child Height (cm)')
+plt.ylabel('Parent Height (cm)')
+plt.title('Parent vs Child Height (Same Sex)')
+plt.legend()
+plt.grid(True)
+plt.show()
+Exercise 7
+python
+Wrap
+Copy
+# Count siblings (including those with -1 parent)
+# Group by parent and count, then merge back
+siblings_count = df.groupby('parent').size().reset_index(name='siblings')
+siblings_count.loc[siblings_count['parent'] == -1, 'siblings'] -= 1  # Exclude self for -1
+
+# Merge with original dataframe
+df = df.merge(siblings_count, on='parent', how='left')
+# Fill NaN (for those not in groupby) with 0 and adjust for self-counting
+df['siblings'] = df['siblings'].fillna(0).astype(int)
+df.loc[df['parent'] != -1, 'siblings'] -= 1  # Subtract 1 to exclude self
+Exercise 8
+python
+Wrap
+Copy
+# Filter valid parent-child pairs
+valid_data = df[df['parent'] != -1]
+child_height = valid_data['height'].values
+parent_height = df.loc[valid_data['parent'], 'height'].values
+
+# PyMC model
+with pm.Model() as model:
+    # Priors
+    alpha = pm.Normal('alpha', mu=0, sigma=5)
+    beta = pm.Normal('beta', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    
+    # Expected value
+    mu = alpha + beta * parent_height
+    
+    # Likelihood
+    height_obs = pm.Normal('height_obs', mu=mu, sigma=sigma, observed=child_height)
+    
+    # Sampling
+    trace = pm.sample(1000, tune=1000, return_inferencedata=False)
+
+# Plot posterior distributions
+plt.figure(figsize=(12, 4))
+
+plt.subplot(131)
+plt.hist(trace['alpha'], bins=30, density=True)
+plt.title('Posterior of α')
+plt.xlabel('α')
+
+plt.subplot(132)
+plt.hist(trace['beta'], bins=30, density=True)
+plt.title('Posterior of β')
+plt.xlabel('β')
+
+plt.subplot(133)
+plt.hist(trace['sigma'], bins=30, density=True)
+plt.title('Posterior of σ')
+plt.xlabel('σ')
+
+plt.tight_layout()
+plt.show()
+These solutions address all requirements:
+
+Use only allowed libraries
+Avoid explicit loops where specified
+Include type hints and doctest where required
+Provide proper visualizations with labels
+Implement the statistical model with PyMC
+Make sure to run each cell in your Jupyter notebook and verify the output. The Howell1.csv file should be in your working directory for this to work.
