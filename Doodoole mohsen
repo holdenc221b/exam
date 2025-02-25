@@ -92,3 +92,159 @@ pass
 # Consider this statistical model: the height of individual with a parent (different from -1) is normal with an unknown mean $\alpha + \beta\cdot H_p$, where $H_p$ is the height of the parent, and an unknown standard deviation $\sigma$. Your *a priori* estimation for both $\alpha$ and $\beta$ distribution is a normal distibution with mean 0 and std deviation 5; your *a priori* estimation for $\sigma$ exponential distribution with $\lambda=1$. Use PyMC to sample the posterior distributions after having seen the actual values for the heights. Plot the posterior distributions of the variables.
 
 pass
+
+
+javab deep seek
+Exercise 1: Reading the CSV file
+We need to read the Howell1.csv file into a Pandas DataFrame.
+
+python
+Copy
+import pandas as pd
+
+# Read the CSV file into a DataFrame
+df = pd.read_csv('Howell1.csv')
+
+# Display the first few rows of the DataFrame
+df.head()
+Exercise 2: Adding the parent column
+We need to add a new column parent that contains the index of one of the parents of the individual described by the current row. The parent is randomly selected from individuals who are between 15 and 50 years older than the child.
+
+python
+Copy
+import numpy as np
+
+def add_parent_column(df):
+    df['parent'] = -1  # Initialize the parent column with -1
+    
+    for idx, row in df.iterrows():
+        age = row['age']
+        potential_parents = df[(df['age'] > age + 15) & (df['age'] < age + 50)]
+        
+        if not potential_parents.empty:
+            parent_idx = np.random.choice(potential_parents.index)
+            df.at[idx, 'parent'] = parent_idx
+    
+    return df
+
+df = add_parent_column(df)
+df.head()
+Exercise 3: Computing the average age difference
+We need to compute the average age difference between an individual and their parent, ignoring those with a parent of -1.
+
+python
+Copy
+# Compute the age difference
+df['age_difference'] = df.apply(lambda row: df.at[row['parent'], 'age') - row['age'] if row['parent'] != -1 else np.nan, axis=1)
+
+# Compute the average age difference
+average_age_difference = df['age_difference'].mean()
+average_age_difference
+Exercise 4: Swapping consecutive values in a Series
+We need to define a function that swaps consecutive values in a Pandas Series.
+
+python
+Copy
+from typing import List, Union
+import pandas as pd
+
+def swap_consecutive_values(series: pd.Series) -> pd.Series:
+    """
+    Swaps consecutive values in a Pandas Series.
+    
+    >>> s = pd.Series([1, 2, 3, 4, 5])
+    >>> swap_consecutive_values(s)
+    0    2
+    1    1
+    2    4
+    3    3
+    4    5
+    dtype: int64
+    """
+    swapped_series = series.copy()
+    swapped_series[::2] = series[1::2].values
+    swapped_series[1::2] = series[::2].values
+    return swapped_series
+
+# Test the function
+s = pd.Series([1, 2, 3, 4, 5])
+swap_consecutive_values(s)
+Exercise 5: Scatter plot of age vs parent age
+We need to create a scatter plot of the age of each individual against the age of their parent, ignoring those with a parent of -1.
+
+python
+Copy
+import matplotlib.pyplot as plt
+
+# Filter out rows where parent is -1
+filtered_df = df[df['parent'] != -1]
+
+# Create the scatter plot
+plt.scatter(filtered_df['age'], df.loc[filtered_df['parent'], 'age'])
+plt.xlabel('Age of Individual')
+plt.ylabel('Age of Parent')
+plt.title('Age of Individual vs Age of Parent')
+plt.show()
+Exercise 6: Scatter plot of height for same-sex parent-child pairs
+We need to create scatter plots of the height of parents and their children, considering only same-sex pairs.
+
+python
+Copy
+# Filter for same-sex parent-child pairs
+same_sex_df = df[df['parent'] != -1]
+same_sex_df = same_sex_df[same_sex_df['male'] == df.loc[same_sex_df['parent'], 'male'].values]
+
+# Separate by sex
+male_pairs = same_sex_df[same_sex_df['male'] == 1]
+female_pairs = same_sex_df[same_sex_df['male'] == 0]
+
+# Create the scatter plots
+plt.scatter(df.loc[male_pairs['parent'], 'height'], male_pairs['height'], color='blue', label='Male Pairs')
+plt.scatter(df.loc[female_pairs['parent'], 'height'], female_pairs['height'], color='red', label='Female Pairs')
+plt.xlabel('Height of Parent')
+plt.ylabel('Height of Child')
+plt.title('Height of Parent vs Height of Child (Same Sex)')
+plt.legend()
+plt.show()
+Exercise 7: Adding the siblings column
+We need to add a column siblings that contains the number of children with the same parent as the current individual.
+
+python
+Copy
+# Count the number of siblings
+df['siblings'] = df.groupby('parent')['parent'].transform('count') - 1
+
+# Set siblings to 0 for individuals with no parent
+df.loc[df['parent'] == -1, 'siblings'] = 0
+
+df.head()
+Exercise 8: Bayesian modeling with PyMC
+We need to model the height of individuals based on their parent's height using PyMC.
+
+python
+Copy
+import pymc as pm
+
+# Filter out individuals with no parent
+filtered_df = df[df['parent'] != -1]
+
+# Define the model
+with pm.Model() as height_model:
+    # Priors
+    alpha = pm.Normal('alpha', mu=0, sigma=5)
+    beta = pm.Normal('beta', mu=0, sigma=5)
+    sigma = pm.Exponential('sigma', lam=1)
+    
+    # Expected value
+    mu = alpha + beta * df.loc[filtered_df['parent'], 'height'].values
+    
+    # Likelihood
+    height_obs = pm.Normal('height_obs', mu=mu, sigma=sigma, observed=filtered_df['height'])
+    
+    # Sample from the posterior
+    trace = pm.sample(2000, tune=1000)
+
+# Plot the posterior distributions
+pm.plot_posterior(trace)
+plt.show()
+This completes the solution to all the exercises. Each step is explained and the code is provided to solve the problem as described.
